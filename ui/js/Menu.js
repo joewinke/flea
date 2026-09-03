@@ -84,6 +84,16 @@ function advancedRows(showHidden) {
     }]
 }
 
+// The keep/trash pair the danger row pauses on: Keep first and first-highlighted, Trash beneath
+// in its own danger red, and nothing commits until one of the two is chosen. Esc or Keep puts the
+// listing back untouched; Trash is the only way through.
+function confirmEntries() {
+    return [
+        { label: "Keep", action: "keepTrash", glyph: "check" },
+        { label: "Move to Trash", action: "confirmTrash", glyph: "trash", danger: true }
+    ]
+}
+
 // ui/Header.qml's own rows, on a right click over the column titles. Name is not among them: it is
 // the one column a file manager cannot do without (see ui/js/Columns.js), so it is never hidden and
 // never offered. A hidden column reads "Show", a drawn one "Hide", the flip the state rows use.

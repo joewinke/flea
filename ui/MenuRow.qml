@@ -35,7 +35,6 @@ Item {
                                       : root.picked ? Theme.color.accent : Theme.color.foreground
 
     // The hover lift Row.qml uses, so a menu row and a list row read alike.
-    readonly property real hoverOpacity: 0.08
     // A separator is a hairline with one gap of air around it, which is the mock's 11 px read from tokens instead.
     readonly property int separatorHeight: Theme.spacing.gap + Theme.spacing.hairline
     readonly property real separatorOpacity: 0.4
@@ -51,8 +50,12 @@ Item {
         visible: !root.isSeparator
         // selectedAccentFill already carries the theme's own selected alpha, so the tint is a
         // colour here and an opacity for the plain lift, never both at once.
-        color: root.picked ? Style.selectedAccentFill : Theme.color.foreground
-        opacity: root.picked ? 1 : (root.current ? root.hoverOpacity : 0)
+        // The hover fill is the listing row's own Style.hoverFill rung, so a menu row hovers as
+        // visibly as a listing row does; the old 8 percent foreground tint read as no hover at all.
+        color: root.picked ? Style.selectedAccentFill
+             : root.current ? Style.hoverFill
+             : "transparent"
+        opacity: 1
     }
 
     Rectangle {

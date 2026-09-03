@@ -1,7 +1,6 @@
 import QtQuick
 import qs.Commons
 import "." as Flea
-import "js/Keymap.js" as Keymap
 import "js/Menu.js" as Menu
 
 // A plain overlay, not a QQC Popup: the one Controls import cost 10 ms of warm startup.
@@ -16,6 +15,11 @@ Item {
     property bool opened: false
     // Driven from ui/Pane.qml's own state, so this file owns no hidden-file logic itself.
     property bool showHidden: false
+    // The application name ui/Opener.qml resolved for the cursor row, shown muted beside "Open".
+    property string openSuffix: ""
+    // Move to Trash pauses on a keep/trash pair before it commits: true from the moment the danger
+    // row is chosen until the menu closes, and the entries are the pair while it stands.
+    property bool confirming: false
     // [{id, label}], the reachable Taildrop targets; empty self-hides the whole row, see ui/Taildrop.qml.
     property var taildropPeers: []
     // The archive formats this box actually probed, and whether a converter is installed at all.
@@ -76,23 +80,14 @@ Item {
 
     // The row list this menu currently offers; a test reads this back through shell.qml's IPC.
     function buildEntries() {
-        // Which release a rail row offers is the rail's knowledge, not the listing's, so the rail
-        // hands its rows in already built; see ui/js/Mounts.js "railMenu".
+        // The rail hands its rows in already built, see ui/js/Mounts.js "railMenu".
         if (root.forRail)
             return root.heldEntries
         if (root.forHeader)
             return Menu.headerEntries(ViewState.hiddenCols, root.showHidden, ViewState.foldersFirst)
-        return Menu.listingEntries({
-            showHidden: root.showHidden,
-            hasRow: root.hasRow,
-            rowInDropbox: root.rowInDropbox,
-            dropboxPath: root.dropboxPath,
-            taildropPeers: root.taildropPeers,
-            archiveFormats: root.archiveFormats,
-            rowIsArchive: root.rowIsArchive,
-            rowIsImage: root.rowIsImage,
-            canConvert: root.canConvert,
-        })
+        if (root.confirming)
+            return Menu.confirmEntries()
+        return Menu.listingEntries(root)
     }
 
     // A separator is never the cursor, so both key steps and the opening cursor skip over one.
@@ -183,6 +178,7 @@ Item {
             return
         root.opened = false
         root.openSubmenuRow = -1
+        root.confirming = false
         root.clearRail()
         if (root.focusHolder)
             root.focusHolder.forceActiveFocus()
@@ -190,15 +186,27 @@ Item {
 
     // The menu closes before the action runs, so it never hangs over the listing that action opened.
     function choose(action) {
+        // Move to Trash pauses for an in-menu keep/trash pair, Keep first, before it commits: the
+        // morph is deliberate, so the same tap that opens the menu cannot also empty it. Keep puts
+        // the listing back untouched; Trash is the only way through.
+        if (action === "trash" && !root.confirming) {
+            root.confirming = true
+            root.heldEntries = Menu.confirmEntries()
+            root.cursor = 0
+            return
+        }
         // Both read before close(), which is what clears them.
         var key = root.railKey
         var rail = root.forRail
+        var keep = action === "keepTrash"
+        root.confirming = false
         root.close()
         if (rail) {
             root.railChosen(action, key)
             return
         }
-        root.chosen(action)
+        if (!keep)
+            root.chosen(action)
     }
 
     // A row with its own action fires it as named; a peer or format composes the parent verb + id.
@@ -269,6 +277,10 @@ Item {
         border.color: Theme.color.muted
         // Mirrors hyprland decoration:rounding, same as NetworkDialog; 0 on a stock box stays square.
         radius: Style.cornerRadius
+
+        // Blocks the HoverHandlers beneath the menu — the listing rows would tint and read as a
+        // selection while the pointer crosses the frame — and leaves this frame's own rows alone.
+        HoverHandler { blocking: true }
 
         Column {
             id: rows
@@ -345,55 +357,9 @@ Item {
         }
     }
 
-    // One focus catcher for the whole menu: real QML focus never moves into the Repeater rows, so
-    // every key lands here at either level, through keys.toml's own table — j and k step the list.
-    Item {
+    MenuKeys {
         id: keyCatcher
         anchors.fill: parent
         focus: true
-
-        Keys.onPressed: function (event) {
-            var action = Keymap.lookup(event.key, event.text, event.modifiers)
-            if (action === "escape") {
-                if (root.submenuOpen)
-                    root.openSubmenuRow = -1
-                else
-                    root.close()
-                event.accepted = true
-                return
-            }
-            if (action === "cursorDown") {
-                if (root.submenuOpen)
-                    root.submenuCursor = Math.min(root.submenuEntries.length - 1, root.submenuCursor + 1)
-                else
-                    root.cursor = root.stepCursor(root.cursor, 1)
-                event.accepted = true
-                return
-            }
-            if (action === "cursorUp") {
-                if (root.submenuOpen)
-                    root.submenuCursor = Math.max(0, root.submenuCursor - 1)
-                else
-                    root.cursor = root.stepCursor(root.cursor, -1)
-                event.accepted = true
-                return
-            }
-            // Right and Enter and Space all choose; Right on a shut flyout opens it, Left shuts it.
-            if (action === "open" || action === "preview" || action === "seekForward") {
-                if (root.submenuOpen) {
-                    var sub = root.submenuEntries[root.submenuCursor]
-                    if (sub)
-                        root.chooseSub(sub)
-                } else {
-                    var entry = root.entries[root.cursor]
-                    if (Menu.hasSubmenu(entry))
-                        root.openSubmenu(root.cursor)
-                    else if (entry && entry.separator !== true)
-                        root.choose(entry.action)
-                }
-                event.accepted = true
-            }
-            if ((action === "seekBack" || action === "cursorLeft") && root.submenuOpen) { root.openSubmenuRow = -1; event.accepted = true; return }
-        }
     }
 }
