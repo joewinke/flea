@@ -223,6 +223,13 @@ printf '%s\n' "<sudo password>" \
 
 # Capability pass: what each entrant can thumbnail at all, unranked and untimed.
 tools/flea-bench-capability
+
+# One entrant, re-measured. ONLY scopes the kill list to it as well, so a run on a box in use
+# cannot close a window it did not start. This is how strata's rows in media-rc-2044.csv were
+# taken, a day after the rest of the field.
+printf '%s\n' "<sudo password>" \
+  | ONLY=strata FIXTURE=/home/flea-sandbox/flea-media-btrfs EXPECT_FILES=2000 DROP_THUMBS=yes \
+    tools/flea-field-bench ~/bench/strata.csv
 ```
 
 `tools/flea-field-bench` launches the tree it measures, so it is meant to be run from a copy of

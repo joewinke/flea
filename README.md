@@ -139,7 +139,7 @@ because Flea is the entrant that has one, which understates any rival whose work
 ### 2,000 files, 1,800 of them thumbnailable, cold cache
 
 <div align="center">
-  <img src="docs/images/bench-media.svg" alt="The 2,000 file GUI bracket: Flea settles in 2,612 ms having drawn 36 thumbnails, against dolphin's 14,514 ms having drawn 552, with pcmanfm and strata below the rule as unranked">
+  <img src="docs/images/bench-media.svg" alt="The 2,000 file GUI bracket: Flea settles in 2,612 ms having drawn 36 thumbnails, against strata's 30,792 ms having drawn 205 and dolphin's 14,514 ms having drawn 552, with pcmanfm below the rule as unranked">
 </div>
 
 | entrant | first window | settled listing | work done | memory, PSS | CPU, process tree | runs |
@@ -149,6 +149,7 @@ because Flea is the entrant that has one, which understates any rival whose work
 | `thunar` | 511 ms | 12,785 ms | 221 thumbnails | 40.7 MiB | 7.27 s | 3 |
 | `dolphin` | 672 ms | 14,514 ms | 552 thumbnails | 101.5 MiB | 68.11 s | 3 |
 | `nautilus` | 819 ms | 17,006 ms | 541 thumbnails | 172.6 MiB | 12.81 s | 3 |
+| `strata` | 798 ms | 30,792 ms | 205 thumbnails | 70.3 MiB | 1.82 s | 3 |
 
 **Not ranked.** An entrant whose work was not measured cannot be compared on time, and one that
 never settled has no time.
@@ -156,7 +157,14 @@ never settled has no time.
 | entrant | settled listing | work done | why it is not ranked |
 |---|---|---|---|
 | `pcmanfm` | never settled | 605 thumbnails | never settled in any of the 3 runs |
-| `strata` | 30,780 ms | not measured | nothing reached the thumbnail cache so its work was not measured |
+
+`strata`'s three rows were taken on 2026-09-03, a day after the rest of the field, and they are the
+only rows in this table that were. It persists no thumbnail, so the cache count every other row
+uses saw nothing and its time sat below the rule unranked while it was in fact drawing 205 of them.
+The re-run counts that work by a live watch attached across the same three runs that take the
+timing, so its work column and its time come from one instrument pass and not from two. The method,
+the run conditions and the two differences from the batch are in
+[`docs/bench/media-rc-2044.manifest.md`](docs/bench/media-rc-2044.manifest.md).
 
 **Flea settles first on this fixture while drawing the fewest thumbnails of any ranked entrant: 36
 against `dolphin`'s 552, a fifteenth of the work, so that first place is not a bare first place and
@@ -172,20 +180,32 @@ comparable to Flea's without its own work column beside it.
 Column by column. The denominator moves because an entrant that never settled still has a window, a
 memory and a CPU number, so `pcmanfm` is counted on three of these four:
 
-- **Time to a settled listing:** 2,612 ms, **first of five**, ahead of `nemo` at 3,372 ms, 1.29x,
+- **Time to a settled listing:** 2,612 ms, **first of six**, ahead of `nemo` at 3,372 ms, 1.29x,
   and at a fifteenth of `dolphin`'s work, as above.
-- **CPU, process tree:** 1.42 s, **first of six**, ahead of `nemo` at 5.13 s, 3.61x.
-- **Memory, PSS:** 112.6 MiB, fifth of six, behind `pcmanfm` at 40.5 MiB, 2.78x; fourth of the five
-  ranked entrants, behind `thunar` at 40.7 MiB. With Flea's backend, 114.6 MiB, and still fifth.
-- **Time to first window:** 833 ms, sixth of six, behind `pcmanfm` at 390 ms, 2.13x; fifth of the
-  five ranked entrants, behind `thunar` at 511 ms.
+- **CPU, process tree:** 1.42 s, **first of seven**, ahead of `strata` at 1.82 s, 1.28x.
+- **Memory, PSS:** 112.6 MiB, sixth of seven, behind `pcmanfm` at 40.5 MiB, 2.78x; fifth of the six
+  ranked entrants, behind `thunar` at 40.7 MiB. With Flea's backend, 114.6 MiB, and still sixth.
+- **Time to first window:** 833 ms, seventh of seven, behind `pcmanfm` at 390 ms, 2.13x; sixth of
+  the six ranked entrants, behind `thunar` at 511 ms.
+
+Ranking `strata` cost Flea a place on memory and cut the CPU lead from 3.61x over `nemo` to 1.28x
+over `strata`, which is now the nearest rival on that column by a distance: 1.82 s against Flea's
+1.42 s where the next entrant is `nemo` at 5.13 s. It is also lighter than Flea, 70.3 MiB against
+112.6, while drawing 205 thumbnails to Flea's 36. What it does not take is the settle column, where
+it is the slowest ranked entrant on this fixture at 11.8x Flea's time. Excluding it was an
+instrument failure and not a choice, and a competitor that beats us on a column is exactly the thing
+an instrument failure must not be allowed to hide, which is why its rows are here and this paragraph
+is with them.
 
 First window moved the wrong way between the earlier batch of the same day and this one: 689 ms to
-752 ms on the scale fixture, third of seven to fifth of seven, and 774 ms to 833 ms here, fifth of
-six to sixth of six. It has never been a column Flea won and it blocks nothing, but the direction
-is real and it belongs here as a number rather than as an omission. The scale move is smaller than
-the range across Flea's own three runs in that batch, 732 to 913 ms; the media move is larger than
-its own range of 795 to 835 ms, so read the media one as a move and the scale one as noise-sized.
+752 ms on the scale fixture, third of seven to fifth of seven, and 774 ms to 833 ms here. That
+earlier batch's media place is not quoted beside it: it was ranked before `strata` was measured, so
+its denominator was six where this one is seven and the two ordinals are not the same question. In
+this run Flea is seventh of seven. It has never been a column Flea won and it blocks nothing, but
+the direction is real and it belongs here as a number rather than as an omission. The scale move is
+smaller than the range across Flea's own three runs in that batch, 732 to 913 ms; the media move is
+larger than its own range of 795 to 835 ms, so read the media one as a move and the scale one as
+noise-sized.
 
 ### What each entrant can actually thumbnail
 
@@ -212,7 +232,8 @@ broken measurement rather than a capable entrant.
 `strata`'s row is the one measured by a live watch rather than by a thumbnail-cache count, because
 it is the one entrant that persists no thumbnail: it renders each one into a scratch directory it
 deletes immediately and keeps the image in memory. A cache count sees none of that, which is why
-its work column above reads **not measured** and not a zero.
+this table read "thumbnails nothing" for a whole release. The field run above now counts its work
+the same way, in its own runs.
 
 The field run's own per-format counts answer the other question, how far each entrant got before it
 stopped, and they must not be read as the table above. Flea's zero in `jpg` here is the viewport it
@@ -226,7 +247,7 @@ drew, not a format it cannot produce.
 | `pcmanfm` | 605 | `heic=0;jpg=0;mkv=0;mp4=400;png=105;txt=0;webm=100;webp=0;unknown=0` |
 | `nemo` | 60 | `heic=0;jpg=45;mkv=0;mp4=0;png=0;txt=0;webm=0;webp=15;unknown=0` |
 | `dolphin` | 552 | `heic=0;jpg=50;mkv=84;mp4=335;png=0;txt=0;webm=83;webp=0;unknown=0` |
-| `strata` | not measured | `unmeasurable` |
+| `strata` | 205 | `heic=0;jpg=0;mkv=34;mp4=137;png=0;txt=0;webm=34;webp=0;unknown=0` |
 
 ### The TUI bracket
 

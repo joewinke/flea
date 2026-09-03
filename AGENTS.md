@@ -901,6 +901,23 @@ waits for its consumer.
   other thirteen. `n/a: tui in <terminal>` is the whole TUI bracket: a
   TUI previews the cursor file and never fills a grid, and the terminal decides whether it can draw
   an image at all, so those rows carry `n/a` in `thumbs_n` rather than a 0 that reads as slow.
+- **`tools/flea-field-bench` measures its own `TRANSIENT_ID` by the same live watch, so such a row
+  is ranked rather than refused.** Two watches, because neither answers both questions: an
+  `inotifywait` on `/tmp` counts each `result.png` closing under `TRANSIENT_PREFIX`, and an
+  `inotifywait` on the fixture directory names the file that earned it, because bwrap binds the
+  input into the helper's namespace without moving the dentry and the open still reports against
+  the fixture's own watch. Both are armed above `drop_caches`, so the walk's own cache warming is
+  dropped with everything else, and both are read at the moment `count_thumbs` would have run, so
+  the count and the timing come from one pass. strata thumbnails one file at a time, so an open and
+  the render it earns are paired: the run refuses its own numbers if the two logs differ by more
+  than the one render in flight. The cache reading still lands in `thumbs_by_dir`, and a 0 from the
+  live watch is a real 0 rather than the cache's silence.
+- **`ONLY=<entrant>` scopes the kill list as well as the run.** A full-field run closes every file
+  manager on the box by name and refuses to start beside one, which is correct for a field run and
+  wrong for re-measuring one row on a box somebody is using: the operator's own windows are not the
+  harness's to close. With `ONLY` set, both the kill list and the start-up refusal cover only that
+  entrant's own processes. A re-measured row is a row from a different day and the manifest says so
+  in its own words, the way `docs/bench/media-rc-2044.manifest.md` does for strata.
 - **Two rules for the report, which the harness cannot enforce.** The thumbnail count prints beside
   every timing number in every table, not only in the CSV: a settle time without its count is not
   citable for this field. And where two counts differ by an order of magnitude the row says so

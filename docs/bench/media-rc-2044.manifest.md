@@ -16,6 +16,43 @@ The host name and the checkout path are generalised for publication; no measured
 - TUI preview target: /home/flea-sandbox/flea-media-btrfs/photo_0.jpg
 - fixture payload assertion: PASSED, 2000 visible entries against the expected 2000
 
+## Correction, 2026-09-03: strata's three rows were re-measured
+
+**strata's rows in `media-rc-2044.csv` come from a run on 2026-09-03, not from the 2026-09-02
+batch above. No other entrant was re-run and no other number moved.**
+
+The batch reported strata as having produced nothing, and that was the instrument and not the
+entrant. strata persists no thumbnail: it renders each one in a sandboxed helper that writes
+`result.png` into `/tmp/strata-preview-<pid>-<n>`, reads it into a 256-entry, 64 MiB in-memory
+cache, and deletes the directory on drop. Every instrument in this harness counted
+`~/.cache/thumbnails`, which is structurally blind to that, so strata's work column read `0`,
+then `unmeasurable`, and its time sat below the rule unranked for the whole v0.1.0 release while
+it drew six of the eight formats offered.
+
+The re-run measures that work by a live watch attached across the same run that takes the timing,
+so `thumbs_n` and `thumbs_by_format` come out of the same three runs as `settled_ms`, `pss_kb` and
+`cpu_tree_s` rather than being borrowed from `capability.md`, which is a different instrument on a
+different day. Two watches, because neither answers both questions: an `inotifywait` on `/tmp`
+counts each `result.png` closing, and an `inotifywait` on the fixture directory names the file that
+earned it, because bwrap binds the input into the helper's namespace without moving the dentry.
+strata thumbnails one file at a time, so the two are paired, and all three runs recorded **205
+renders against exactly 205 fixture opens**.
+
+Everything else was held: `tools/flea-field-bench` with `ONLY=strata DROP_THUMBS=yes`, the same
+fixture, the same v0.6.1 build, caches dropped before each of the three runs, and the same idle
+gate. Two differences are disclosed rather than hidden.
+
+- **The kill list was scoped to strata.** The box carried two of the operator's own packaged Flea
+  processes, and a full-field run would have closed them. `ONLY` now scopes both the kill list and
+  the start-up refusal to the entrant named.
+- **Those two processes were resident for the re-run and were not for the batch.** A resident Qt
+  process can understate another process's PSS by sharing library pages. It did not here: strata's
+  PSS came out 1.7 MB **higher** than on 2026-09-02, 71964 kB against 70254, and its settle time
+  landed within 0.04 percent of it, 30792 ms against 30780.
+
+The raw cache reading survives in `thumbs_by_dir` as `fail=0;large=0`, which is a true statement
+about the cache and a false one about the entrant.
+
 ## Fixture by extension
 
 ```
@@ -208,20 +245,9 @@ failure marker the thumbnailer left. Never attempted is neither, which on this f
 means the entrant settled before reaching those names: they sort by format, clip before image
 before notes before photo. **A never-attempted count is not a capability claim.**
 
-**Correction, 2026-09-03: strata's line here read "produced nothing" and that was an instrument
-failure, not a result.** strata persists no thumbnail. It renders each one in a sandboxed helper
-that writes `result.png` into `/tmp/strata-preview-<pid>-<n>`, reads it into a 256-entry, 64 MiB
-in-memory cache, and deletes the directory on drop, so it draws thumbnails on screen and leaves
-`~/.cache/thumbnails` untouched. Every instrument in this harness counted that cache, so both this
-manifest and `capability.md` reported strata as capable of nothing for the whole v0.1.0 release
-while it drew six of the eight formats offered. Confirmed three ways on 2026-09-03: a screenshot of
-strata on this fixture showing rendered video frames in place of the type glyph it starts with, a
-live `inotifywait` over `$HOME/.cache`, `$HOME/.local/share`, the fixture, `/tmp` and
-`/run/user/1000` across a 50-second run that recorded 205 renders and **zero net new paths**, and
-strata's own source at `src/ui/thumbnail.rs`. `thumbs_n` and `thumbs_by_format` for strata now read
-`unmeasurable`; the raw cache reading survives in `thumbs_by_dir` as `fail=0;large=0`, which is a
-true statement about the cache and a false one about the entrant. **No other entrant's numbers were
-re-run or changed**, and strata's own timing columns are the ones this batch measured.
+**strata's line below is counted by the live watch described under "Correction" above, not by
+this cache.** Its instrument is named there and it is not the one the other six rows used; what
+the two have in common is that each counts thumbnails the entrant actually drew on this fixture.
 
 - flea produced mkv 6, mp4 24, webm 6; refused nothing; never attempted heic 200, jpg 600, mkv 94, mp4 376, png 200, txt 200, webm 94, webp 200
 - nautilus produced heic 13, mp4 400, png 14, webm 100, webp 14; refused nothing; never attempted heic 187, jpg 600, mkv 100, png 186, txt 200, webp 186
@@ -229,7 +255,7 @@ re-run or changed**, and strata's own timing columns are the ones this batch mea
 - pcmanfm produced mp4 400, png 105, webm 100; refused nothing; never attempted heic 200, jpg 600, mkv 100, png 95, txt 200, webp 200
 - nemo produced jpg 45, webp 15; refused nothing; never attempted heic 200, jpg 555, mkv 100, mp4 400, png 200, txt 200, webm 100, webp 185
 - dolphin produced jpg 50, mkv 84, mp4 335, webm 83; refused nothing; never attempted heic 200, jpg 550, mkv 16, mp4 65, png 200, txt 200, webm 17, webp 200
-- strata: nothing reached the thumbnail cache, so this run makes no format claim about it either way; tools/flea-bench-capability is the instrument that answers what it can draw
+- strata produced mkv 34, mp4 137, webm 34; refused nothing; never attempted heic 200, jpg 600, mkv 66, mp4 263, png 200, txt 200, webm 66, webp 200
 - yazi: a TUI previews the cursor file and fills no grid, so it writes no thumbnails at all
 - mc: a TUI previews the cursor file and fills no grid, so it writes no thumbnails at all
 - broot: a TUI previews the cursor file and fills no grid, so it writes no thumbnails at all
@@ -259,7 +285,6 @@ safe direction, and it is not a reason to leave the number out.
 
 ## Rank refusals
 
-- strata run 1: unranked: nothing reached the thumbnail cache so its work was not measured
 - yazi run 1: n/a: tui in kitty
 - mc run 1: n/a: tui in kitty
 - broot run 1: n/a: tui in kitty
@@ -268,7 +293,6 @@ safe direction, and it is not a reason to leave the number out.
 - ranger run 1: n/a: tui in kitty
 - xplr run 1: n/a: tui in kitty
 - superfile run 1: n/a: tui in kitty
-- strata run 2: unranked: nothing reached the thumbnail cache so its work was not measured
 - yazi run 2: n/a: tui in kitty
 - mc run 2: n/a: tui in kitty
 - broot run 2: n/a: tui in kitty
@@ -277,7 +301,6 @@ safe direction, and it is not a reason to leave the number out.
 - ranger run 2: n/a: tui in kitty
 - xplr run 2: n/a: tui in kitty
 - superfile run 2: n/a: tui in kitty
-- strata run 3: unranked: nothing reached the thumbnail cache so its work was not measured
 - yazi run 3: n/a: tui in kitty
 - mc run 3: n/a: tui in kitty
 - broot run 3: n/a: tui in kitty

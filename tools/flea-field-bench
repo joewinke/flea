@@ -36,6 +36,12 @@ FLEA_UI="$FLEA_REPO/ui"
 FLEA_BIN="$FLEA_REPO/target/release/flea"
 # Strata is built from source rather than packaged, so its path is a variable and not a PATH lookup.
 STRATA_BIN=${STRATA_BIN:-$HOME/Work/strata/target/release/strata}
+# The one entrant here that persists no thumbnail. strata renders each one in a sandboxed helper
+# that writes result.png into /tmp/strata-preview-<pid>-<n> and deletes the directory on drop, so it
+# fills the screen and leaves the cache this harness counts empty. Same two names, and the same live
+# watch, as tools/flea-bench-capability.
+TRANSIENT_ID=${TRANSIENT_ID:-strata}
+TRANSIENT_PREFIX=${TRANSIENT_PREFIX:-/tmp/strata-preview-}
 # The TUI bracket's own XDG_CONFIG_HOME: a copy of the committed configuration in a mktemp -d of
 # this run's own, so an entrant reads the bench's settings and never the operator's, this repo never
 # collects the state files entrants write, and each run starts from the same clean tree. Provenance
@@ -153,6 +159,92 @@ count_thumbs() {
     THUMBS_BY_DIR="${THUMBS_BY_DIR:+$THUMBS_BY_DIR;}$name=$n"
   done
   [ -n "$THUMBS_BY_DIR" ] || THUMBS_BY_DIR=none
+}
+
+WATCH_PIDS=()
+WATCH_RENDERS=""
+WATCH_OPENS=""
+WATCH_RENDERED=""
+WATCH_N=0
+# How long to wait for inotifywait to report its watches up. /tmp is walked recursively, so this is
+# a real wait, and a render that lands before the watch is armed is invisible to the count.
+WATCH_ARM_TIMEOUT_MS=${WATCH_ARM_TIMEOUT_MS:-30000}
+
+# Sample input, the line inotifywait writes to stderr once it is ready: "Watches established."
+watch_armed() {
+  local err=$1 deadline
+  now_ms; deadline=$(( NOW_MS + WATCH_ARM_TIMEOUT_MS ))
+  while ! grep -q 'Watches established' "$err" 2>/dev/null; do
+    now_ms
+    [ "$NOW_MS" -gt "$deadline" ] && return 1
+    sleep 0.05
+  done
+}
+
+# Two watches, because neither answers both questions: /tmp records a render finishing and the
+# fixture records which file earned it. bwrap binds the input into the helper's namespace without
+# moving the dentry, so the helper's open still reports against the fixture's own directory watch.
+watch_start() {
+  local id=$1
+  WATCH_RENDERS="$KEYS_DIR/$id-run$RUN_INDEX.renders"
+  WATCH_OPENS="$KEYS_DIR/$id-run$RUN_INDEX.opens"
+  WATCH_RENDERED="$KEYS_DIR/$id-run$RUN_INDEX.rendered"
+  : > "$WATCH_RENDERS"
+  : > "$WATCH_OPENS"
+  : > "$WATCH_RENDERS.err"
+  : > "$WATCH_OPENS.err"
+  inotifywait -m -r -e close_write --format '%w%f' /tmp > "$WATCH_RENDERS" 2> "$WATCH_RENDERS.err" &
+  WATCH_PIDS=("$!")
+  inotifywait -m -e open --format '%f' "$FIXTURE" > "$WATCH_OPENS" 2> "$WATCH_OPENS.err" &
+  WATCH_PIDS+=("$!")
+  watch_armed "$WATCH_RENDERS.err" || fail "the render watch never armed on /tmp"
+  watch_armed "$WATCH_OPENS.err" || fail "the fixture watch never armed on $FIXTURE"
+}
+
+# Kills the watches without reading them, for a run that never reached its count.
+watch_kill() {
+  local pid
+  for pid in ${WATCH_PIDS[*]:-}; do kill "$pid" 2>/dev/null; done
+  WATCH_PIDS=()
+}
+
+# Sample input, one render line: /tmp/strata-preview-1145070-38/result.png
+# Sample input, one open line: clip_1006.mp4
+watch_stop() {
+  local id=$1 pid pids opens_n
+  for pid in ${WATCH_PIDS[*]:-}; do
+    kill -0 "$pid" 2>/dev/null || fail "a $id watch died during the run, so nothing it wrote is a count"
+  done
+  watch_kill
+  WATCH_N=$(grep -c "^$TRANSIENT_PREFIX[0-9]*-[0-9]*/result\.png\$" "$WATCH_RENDERS")
+  # Two entrant processes in one window would let one run's renders be counted for another.
+  pids=$(grep -o "^$TRANSIENT_PREFIX[0-9]*" "$WATCH_RENDERS" | LC_ALL=C sort -u | grep -c .)
+  [ "$pids" -le 1 ] || fail "$pids $id processes wrote renders in this run, so no count from it is attributable"
+  opens_n=$(grep -c . "$WATCH_OPENS")
+  # strata thumbnails one file at a time (MAX_THUMBNAIL_WORKERS = 1 in its src/ui/thumbnail.rs), so
+  # an open and the render it earns are paired and in order, and only the render in flight when the
+  # watch stops can be unpaired.
+  [ "$opens_n" -ge "$WATCH_N" ] && [ $(( opens_n - WATCH_N )) -le 1 ] \
+    || fail "$id opened $opens_n fixture files against $WATCH_N renders, so its two watches disagree and neither is a count"
+  grep . "$WATCH_OPENS" | head -n "$WATCH_N" > "$WATCH_RENDERED"
+}
+
+# The extension of every name the entrant rendered, in the fixture map's own extension order, so a
+# format it never reached still gets a zero row exactly as flea-bench-keys classify gives one.
+watch_classify() {
+  local name ext n out="" total=0
+  local -A count=()
+  while IFS= read -r name; do
+    case $name in *.*) ext=${name##*.} ;; *) ext=none ;; esac
+    count[$ext]=$(( ${count[$ext]:-0} + 1 ))
+  done < "$WATCH_RENDERED"
+  for ext in $(cut -d' ' -f2 "$KEY_MAP" | LC_ALL=C sort -u); do
+    n=${count[$ext]:-0}
+    out="${out:+$out;}$ext=$n"
+    total=$(( total + n ))
+  done
+  # A name the fixture map does not explain is work on something else, named and never folded in.
+  printf '%s;unknown=%s\n' "$out" "$(( WATCH_N - total ))"
 }
 
 # Unique colours in the preview band. An empty answer is a failed capture and counts as no preview,
@@ -414,6 +506,30 @@ declare -a KILL_TARGETS=(
   "tumblerd|"
 )
 
+# The processes in KILL_TARGETS one entrant owns. Two ids are not named after their own process.
+kill_comms_for() {
+  case $1 in
+    flea) printf 'qs\nflea\n' ;;
+    superfile) printf 'spf\n' ;;
+    *) printf '%s\n' "$1" ;;
+  esac
+}
+
+# One entrant, re-measured on a box in use. The full list closes every file manager on it by name,
+# and the operator's own windows are not this run's to close, so ONLY scopes both the kill and the
+# refusal to the entrant named. A row that names nothing is a typo and takes the run down with it.
+if [ -n "${ONLY:-}" ]; then
+  declare -a scoped_targets=()
+  while IFS= read -r only_comm; do
+    for kill_row in "${KILL_TARGETS[@]}"; do
+      [ "${kill_row%%|*}" = "$only_comm" ] && scoped_targets+=("$kill_row")
+    done
+  done < <(kill_comms_for "$ONLY")
+  [ ${#scoped_targets[@]} -gt 0 ] \
+    || fail "ONLY=$ONLY names no process in the kill list, so this run could not clean up after itself"
+  KILL_TARGETS=("${scoped_targets[@]}")
+fi
+
 clean_bench() {
   local row comm token
   for row in "${KILL_TARGETS[@]}"; do
@@ -490,6 +606,9 @@ run_one() {
   HELPER_POLLS_LEFT=0
 
   clean_bench
+  # Above drop_caches, not below it: arming the watch walks /tmp and opens the fixture directory, so
+  # the cache that costs has to be dropped with everything else rather than handed to this entrant.
+  [ "$DROP_THUMBS" = yes ] && [ "$id" = "$TRANSIENT_ID" ] && watch_start "$id"
   drop_caches
   drop_thumbs
 
@@ -502,7 +621,7 @@ run_one() {
     wait_for_window "$class" "$deadline" && mapped=$(( NOW_MS - t0 ))
   fi
 
-  wait_for_pid "$comm" "$token" "$deadline" || { printf '%s,%s,ERROR,no-process\n' "$id" "$RUN_INDEX"; return 1; }
+  wait_for_pid "$comm" "$token" "$deadline" || { watch_kill; printf '%s,%s,ERROR,no-process\n' "$id" "$RUN_INDEX"; return 1; }
   pid=$ENTRANT_PID
 
   while :; do
@@ -544,8 +663,16 @@ run_one() {
     count_thumbs
     thumbs_n=$THUMBS_N
     thumbs_dirs=$THUMBS_BY_DIR
-    capture_keys "$id"
-    thumbs_fmt=$("$FLEA_REPO/tools/flea-bench-keys" classify "$KEY_MAP" "$KEYS_FILE")
+    if [ "$id" = "$TRANSIENT_ID" ]; then
+      # The cache reading above stays in thumbs_by_dir, where it is a true statement about the cache
+      # and a false one about this entrant; the count and the formats come off the live watch.
+      watch_stop "$id"
+      thumbs_n=$WATCH_N
+      thumbs_fmt=$(watch_classify)
+    else
+      capture_keys "$id"
+      thumbs_fmt=$("$FLEA_REPO/tools/flea-bench-keys" classify "$KEY_MAP" "$KEYS_FILE")
+    fi
     if [ "$kind" = tui ]; then
       # A TUI previews the cursor file, it never fills a grid, and the terminal decides whether it
       # can draw an image at all. A 0 here reads as a slow thumbnailer and it is neither slow nor a
@@ -553,7 +680,7 @@ run_one() {
       thumbs_n=n/a
       thumbs_fmt=n/a
       ranked="n/a: tui in $TUI_TERM"
-    elif [ "$thumbs_n" = 0 ]; then
+    elif [ "$thumbs_n" = 0 ] && [ "$id" != "$TRANSIENT_ID" ]; then
       # A failed measurement, not a fast one, and this instrument cannot tell which failure it is.
       # strata renders every thumbnail into a scratch dir it deletes on drop, so it fills the screen
       # and leaves the cache empty: a 0 here is the cache's silence, never the entrant's ability.

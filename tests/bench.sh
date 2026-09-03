@@ -53,8 +53,11 @@ check "no arguments is a usage error" 2 $?
 "$tool" "$scratch/m1.md" "$scratch/nothing-here" >/dev/null 2>&1
 check "a missing fixture is refused" 1 $?
 
-man="$scratch/m.md"
+# Named beside $scratch/run.csv below, because flea-bench-report finds a manifest by the CSV's own
+# name. Every entrant that run holds is listed here too: the report refuses an id it has no kind for.
+man="$scratch/run.manifest.md"
 printf '%s\n' "flea|gui|qs" "dolphin|gui|dolphin" "definitely-not-a-file-manager|gui|definitely-not-a-file-manager" \
+  "strata|gui|strata" "yazi|tui|yazi" "xplr|tui|xplr" \
   | EXPECT_FILES="$payload" "$tool" "$man" "$fixture" >/dev/null 2>&1
 check "a normal run writes a manifest" 0 $?
 
@@ -205,7 +208,7 @@ check "and it still carries exactly one close section" 1 "$(grep -c '^## Run clo
 # must reach the page as "not measured": a 0 there was published as a capability claim about strata
 # for the whole v0.1.0 release while it drew six of the eight formats offered.
 report_out="$scratch/report.md"
-"$repo/tools/flea-bench-report" "$repo/docs/bench/media-rc-2044.csv" > "$report_out" 2>"$scratch/report.err"
+"$repo/tools/flea-bench-report" "$csv" > "$report_out" 2>"$scratch/report.err"
 check "the report runs against a closed manifest" 0 $?
 lacks "a sentinel never reaches the page as a number" "unmeasurable thumbnails" "$report_out"
 lacks "and an unseen entrant is never called a zero" "| 0 thumbnails |" "$report_out"
@@ -215,11 +218,18 @@ lacks "the old claim about the entrant's ability is gone" "drew no thumbnails" "
 # A verdict holding a comma shifts every column right of it, and the failure then surfaces against
 # whichever column the shifted row lands in rather than against the verdict that caused it.
 comma_csv="$scratch/comma.csv"
-sed 's/cache so its work was not measured/cache, so its work was not measured/' "$repo/docs/bench/media-rc-2044.csv" > "$comma_csv"
-cp "$repo/docs/bench/media-rc-2044.manifest.md" "${comma_csv%.csv}.manifest.md"
+sed 's/cache so its work was not measured/cache, so its work was not measured/' "$csv" > "$comma_csv"
+cp "$man" "${comma_csv%.csv}.manifest.md"
 "$repo/tools/flea-bench-report" "$comma_csv" >/dev/null 2>"$scratch/comma.err"
 check "a comma inside a verdict is refused" 1 $?
 holds "and the refusal names the field that holds it" "so a field holds a comma" "$scratch/comma.err"
+
+# The two CSVs this repo ships. Their values are not asserted here, only that the report can read
+# them: rows have been spliced into these by hand and a lost column is the failure that produces.
+for shipped in scale-rc-2026 media-rc-2044; do
+  "$repo/tools/flea-bench-report" "$repo/docs/bench/$shipped.csv" >/dev/null 2>&1
+  check "the shipped $shipped.csv still parses" 0 $?
+done
 
 # The launch line the harness derives from its own table, and the terminal it names once. A renamed
 # or reordered field makes the first empty, and an empty launch line in the manifest is the exact
