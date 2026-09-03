@@ -339,18 +339,14 @@ Item {
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
         onWheel: function (wheel) {
-            // The chord probe, at full verbosity: everything the event carried, into the shell log.
-            console.log("WHEEL mods=" + wheel.modifiers + " x=" + wheel.angleDelta.x + " y=" + wheel.angleDelta.y + " inv=" + wheel.inverted)
             if (root.renamingIndex >= 0) { wheel.accepted = false; return }
-            var dir = Wheel.direction(wheel.angleDelta.y, wheel.inverted)
+            var dir = Wheel.direction(Wheel.axisDelta(wheel), wheel.inverted)
             var meaning = Wheel.meaning(wheel.modifiers)
             if (meaning === "viewport" || meaning === "extend") { wheel.accepted = false; return }
             if (meaning === "end")
                 root.cursorIndex = Wheel.end(dir, root.entries.length)
             else
                 root.cursorIndex = Wheel.stepped(root.cursorIndex, dir, root.entries.length)
-            // The chord probe: what the event actually carried, over the bar, while the Alt bug is hunted.
-            root.message("end x=" + wheel.angleDelta.x + " y=" + wheel.angleDelta.y + " inv=" + wheel.inverted, false)
             wheel.accepted = true
         }
     }

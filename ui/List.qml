@@ -52,7 +52,7 @@ ListView {
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
         onWheel: function (wheel) {
-            var dir = Wheel.direction(wheel.angleDelta.y, wheel.inverted)
+            var dir = Wheel.direction(Wheel.axisDelta(wheel), wheel.inverted)
             var meaning = Wheel.meaning(wheel.modifiers)
             if (meaning === "viewport") { wheel.accepted = false; return }
             // A rename field owns the keyboard, so the chords go quiet over it too.

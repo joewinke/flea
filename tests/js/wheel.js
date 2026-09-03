@@ -30,4 +30,10 @@ function run(check) {
     check("a raw wheel-up is the previous row", Wheel.direction(120, false), -1)
     check("an inverted wheel-down still steps to the next row", Wheel.direction(120, true), 1)
     check("an inverted wheel-up still steps to the previous row", Wheel.direction(-120, true), -1)
+
+    // The axis the event actually turned: an Alt chord this operator's stack rewrites onto the
+    // horizontal axis (modifiers intact, angleDelta.y zero) still reads as a wheel turn.
+    check("a vertical event reads its y", Wheel.axisDelta({ angleDelta: { x: 0, y: -120 } }), -120)
+    check("a horizontal event reads its x", Wheel.axisDelta({ angleDelta: { x: 120, y: 0 } }), 120)
+    check("a diagonal event reads whichever moved most", Wheel.axisDelta({ angleDelta: { x: 40, y: 120 } }), 120)
 }
