@@ -21,6 +21,17 @@ Item {
     // ui/Pane.qml reaches the three through these: openCursor takes the opener, the menu reads the
     // Taildrop peers, and the two share actions call the other two.
     readonly property alias opener: opener
+
+    // The Open row's application name is resolved as the cursor moves, so the menu's muted tail is
+    // already on screen when the menu opens; the cursor belongs to the pane, the resolver to the
+    // opener, and this wire is where the two meet.
+    Connections {
+        target: pane
+        function onCursorRowChanged() {
+            if (pane.cursorRow !== null)
+                opener.defaultAppFor((pane.path === "/" ? "" : pane.path) + "/" + pane.cursorRow.n)
+        }
+    }
     readonly property alias shareLink: shareLink
     readonly property alias taildrop: taildrop
 

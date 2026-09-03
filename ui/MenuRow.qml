@@ -101,14 +101,36 @@ Item {
     }
 
     Text {
+        id: label
         visible: !root.isSeparator
         anchors.left: markSlot.right
         anchors.leftMargin: Theme.spacing.gap
-        anchors.right: chevronSlot.left
-        anchors.rightMargin: Theme.spacing.gap
+        // A row carrying a suffix (the menu's Open row names the app xdg-open would choose) gives
+        // the suffix the room its own width needs and lets the label elide against it; a row
+        // without one lets the label run to the disclosure slot as it always has.
+        anchors.right: suffix.visible ? suffix.left : chevronSlot.left
+        anchors.rightMargin: suffix.visible ? Theme.spacing.gap : Theme.spacing.gap
         anchors.verticalCenter: parent.verticalCenter
         text: root.entry.label !== undefined ? root.entry.label : ""
         color: root.labelColor
+        font.family: Theme.font.family
+        font.pixelSize: Theme.font.bodySmall
+        textFormat: Text.PlainText
+        elide: Text.ElideRight
+    }
+
+    // The muted tail a row can carry: the Open row's resolved application name, so the menu says
+    // what is about to run before the hand commits to the click. Muted at the theme's own muted
+    // role, never a hardcoded grey, and it clips before it can crowd the label out.
+    Text {
+        id: suffix
+        visible: root.entry.suffix !== undefined && root.entry.suffix.length > 0
+        anchors.right: chevronSlot.left
+        anchors.rightMargin: Theme.spacing.gap
+        anchors.verticalCenter: parent.verticalCenter
+        width: Math.min(implicitWidth, parent.width / 2)
+        text: root.entry.suffix !== undefined ? root.entry.suffix : ""
+        color: Theme.color.muted
         font.family: Theme.font.family
         font.pixelSize: Theme.font.bodySmall
         textFormat: Text.PlainText
