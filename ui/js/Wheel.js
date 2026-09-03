@@ -6,18 +6,17 @@
 // modified chords reach the item level, and the same modifier has to mean the same thing over
 // both surfaces or the split between them is a bug neither file can see.
 
-// Ctrl steps the cursor one row a notch, j/k's verb; Alt jumps to either end, g/G's verb; Shift
-// extends the selection the way Shift+Up/Down do. Control wins when it arrives beside another
-// modifier, and anything else — the plain wheel included — is a viewport pan the Flickable keeps.
-// The two chords are written against the modifier Qt names, and this operator's input stack
-// swaps them: a synthetic Alt arrives carrying ControlModifier and a synthetic Ctrl carrying
-// AltModifier, read back off the event's own modifiers field, so the stepper rides the modifier
-// the hand's Alt key actually delivers and the jumper the one Ctrl does.
+// Alt steps the cursor one row a notch, j/k's verb; Ctrl jumps to either end, g/G's verb — the
+// zoom chord is the big verb, the convention every browser and editor shares. Shift extends the
+// selection the way Shift+Up/Down do. Control wins when it arrives beside another modifier, and
+// anything else — the plain wheel included — is a viewport pan the Flickable keeps. The chords
+// read the axis Wheel.axisDelta picks, because some input stacks rewrite a modified wheel onto
+// the horizontal one (this operator's does it to Alt), and the verb must follow the hand anyway.
 function meaning(modifiers) {
     if (modifiers & Qt.ControlModifier)
-        return "cursor"
-    if (modifiers & Qt.AltModifier)
         return "end"
+    if (modifiers & Qt.AltModifier)
+        return "cursor"
     if (modifiers & Qt.ShiftModifier)
         return "extend"
     return "viewport"

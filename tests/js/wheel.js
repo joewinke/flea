@@ -5,15 +5,15 @@
 
 function run(check) {
     check("the plain wheel is the viewport's", Wheel.meaning(Qt.NoModifier), "viewport")
-    check("ctrl steps the cursor", Wheel.meaning(Qt.ControlModifier), "cursor")
-    check("alt jumps to an end", Wheel.meaning(Qt.AltModifier), "end")
+    check("alt steps the cursor", Wheel.meaning(Qt.AltModifier), "cursor")
+    check("ctrl jumps to an end", Wheel.meaning(Qt.ControlModifier), "end")
     check("shift extends the selection", Wheel.meaning(Qt.ShiftModifier), "extend")
 
     // A wheel can carry two modifiers at once when a chord is held through the scroll; the map
     // answers with the strongest verb rather than leaving the pair undefined.
-    check("ctrl outranks alt", Wheel.meaning(Qt.ControlModifier | Qt.AltModifier), "cursor")
-    check("ctrl outranks shift", Wheel.meaning(Qt.ControlModifier | Qt.ShiftModifier), "cursor")
-    check("alt outranks shift", Wheel.meaning(Qt.AltModifier | Qt.ShiftModifier), "end")
+    check("ctrl outranks alt", Wheel.meaning(Qt.ControlModifier | Qt.AltModifier), "end")
+    check("ctrl outranks shift", Wheel.meaning(Qt.ControlModifier | Qt.ShiftModifier), "end")
+    check("alt outranks shift", Wheel.meaning(Qt.AltModifier | Qt.ShiftModifier), "cursor")
 
     // A step clamps to the run it steps through, so a chord held at either end sits still.
     check("a step clamps at the top", Wheel.stepped(0, -1, 5), 0)
