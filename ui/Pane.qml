@@ -350,7 +350,6 @@ FocusScope {
         dropboxPath: sidebar.dropboxReady ? root.home + "/Dropbox" : ""
         // The separator is part of the test, or /home/gm/DropboxBackup would count as inside Dropbox.
         rowInDropbox: root.path === root.home + "/Dropbox" || root.path.indexOf(root.home + "/Dropbox/") === 0
-        openSuffix: wire.opener.defaultAppName
         onChosen: function (action) {
             if (action.indexOf("taildrop:") === 0) { root.sendTaildrop(action.substring("taildrop:".length)); return }
             if (action === "copypath") { wire.opener.copyText(root.path + "/" + root.cursorRow.n); return }

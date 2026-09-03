@@ -16,7 +16,6 @@ Item {
     property bool opened: false
     // Driven from ui/Pane.qml's own state, so this file owns no hidden-file logic itself.
     property bool showHidden: false
-    property string openSuffix: ""
     // [{id, label}], the reachable Taildrop targets; empty self-hides the whole row, see ui/Taildrop.qml.
     property var taildropPeers: []
     // The archive formats this box actually probed, and whether a converter is installed at all.
@@ -32,20 +31,23 @@ Item {
     // False on a listing's empty space, where only the two rows that need no row make sense.
     property bool hasRow: true
 
-    // The rail's own rows when ui/Sidebar.qml raised this menu, empty when the listing did. One
-    // instance serves both: a second one in this tree takes the keyboard from the list, see AGENTS.md.
-    property var railEntries: []
-    // The key naming the rail row those rows belong to, see ui/js/Mounts.js "railKey": the rail
-    // rebuilds on a poll, so an index would name a different row by the time one is chosen.
+    // The rows the open menu offers, SNAPSHOTTED when it opens: a live binding rebuilds under the
+    // pointer, destroys the pressed row mid-tap (the click falls through to the listing beneath and
+    // moves the selection) and swaps a flyout's model to a collapsed frame — the rail handed its
+    // rows in once since always, which is why the rail never had either bug. One instance serves
+    // all three faces: a second one takes the keyboard from the list, see AGENTS.md.
+    property var heldEntries: []
+    readonly property var entries: root.heldEntries
+    property bool forRail: false
+    // Names the rail row the handed-in rows belong to, see ui/js/Mounts.js "railKey".
     property string railKey: ""
-    readonly property bool forRail: root.railEntries.length > 0
     signal railChosen(string action, string key)
 
-    // ui/Header.qml's own entrance, the third face of this one instance: the column toggles and the
-    // state rows, flowing back through chosen() like the listing's.
     property bool forHeader: false
     function openForHeader(scenePoint) {
+        root.forRail = false
         root.forHeader = true
+        root.heldEntries = root.buildEntries()
         root.place(scenePoint)
     }
 
@@ -73,14 +75,11 @@ Item {
         ? root.entries[root.openSubmenuRow].submenu : []
 
     // The row list this menu currently offers; a test reads this back through shell.qml's IPC.
-    readonly property var entries: root.buildEntries()
-
-    // The construction lives in ui/js/Menu.js now, so the rows are unit-testable without a window.
     function buildEntries() {
         // Which release a rail row offers is the rail's knowledge, not the listing's, so the rail
         // hands its rows in already built; see ui/js/Mounts.js "railMenu".
         if (root.forRail)
-            return root.railEntries
+            return root.heldEntries
         if (root.forHeader)
             return Menu.headerEntries(ViewState.hiddenCols, root.showHidden, ViewState.foldersFirst)
         return Menu.listingEntries({
@@ -93,7 +92,6 @@ Item {
             rowIsArchive: root.rowIsArchive,
             rowIsImage: root.rowIsImage,
             canConvert: root.canConvert,
-            openSuffix: root.openSuffix
         })
     }
 
@@ -118,8 +116,10 @@ Item {
 
     // Takes a point in scene coordinates and keeps the whole menu inside the pane it belongs to.
     function openAt(scenePoint) {
-        root.clearRail()
+        root.heldEntries = root.buildEntries()
+        root.forRail = false
         root.forHeader = false
+        root.railKey = ""
         root.place(scenePoint)
     }
 
@@ -129,14 +129,17 @@ Item {
         if (!entries || entries.length === 0)
             return
         root.railKey = key
-        root.railEntries = entries
+        root.forRail = true
+        root.heldEntries = entries
         root.place(scenePoint)
     }
 
     // Cleared on both ends: a rail entry left standing would put Eject on a listing row's menu.
     function clearRail() {
-        root.railEntries = []
+        root.forRail = false
         root.railKey = ""
+        root.heldEntries = []
+        root.forHeader = false
     }
 
     // Where the menu was asked to open, in this item's own coordinates; clampFrame runs twice on it.
@@ -198,8 +201,7 @@ Item {
         root.chosen(action)
     }
 
-    // One signal covers every submenu: a row with its own action fires it as named; a Taildrop peer
-    // or an archive format composes the row's parent verb with its id, as those two answer.
+    // A row with its own action fires it as named; a peer or format composes the parent verb + id.
     function chooseSub(sub) {
         var entry = root.entries[root.openSubmenuRow]
         root.close()
@@ -247,7 +249,6 @@ Item {
         surface: flyout
     }
 
-    // Hover and wheel blocking: an event that neither blocks would drive the rows beneath the menu.
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
@@ -300,7 +301,6 @@ Item {
     Rectangle {
         id: flyout
         visible: root.submenuOpen
-        // The same blocking MouseArea the frame's backdrop carries, scaled to the flyout.
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.NoButton
