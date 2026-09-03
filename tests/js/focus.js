@@ -120,13 +120,17 @@ function run(check) {
     check("e is discarded over a media preview", Focus.lookup(e, pane(mediaOpen())), "")
     check("minus is discarded over a media preview", Focus.lookup(minus, pane(mediaOpen())), "")
 
-    // Left and Right now serve two previews, and must still serve the grid and nothing else.
+    // Left and Right now serve two previews, and must still serve the grid, the view step and
+    // nothing else: in the list with nothing open, Left steps into the rail and Right stays free.
     check("left turns a PDF page", Focus.lookup(left, pane(pdfOpen())), "seekBack")
     check("right turns a PDF page", Focus.lookup(right, pane(pdfOpen())), "seekForward")
     check("left still seeks media", Focus.lookup(left, pane(mediaOpen())), "seekBack")
-    check("left is discarded in the list", Focus.lookup(left, pane(closed())), "")
+    check("left steps into the rail", Focus.lookup(left, pane(closed())), "focusRail")
+    check("right stays free in the list", Focus.lookup(right, pane(closed())), "")
     check("left still steps a grid tile", Focus.lookup(left, pane(closed(), "grid")), "cursorLeft")
     check("right still steps a grid tile", Focus.lookup(right, pane(closed(), "grid")), "cursorRight")
+    check("left steps back to the list from the rail", Focus.lookup(left, railPane()), "focusList")
+    check("right steps back to the list from the rail", Focus.lookup(right, railPane()), "focusList")
 
     // h and l are the PDF page pair. l was unbound and h fell through previewAct's switch, so
     // neither ever turned a page while the chevrons and the arrows both did.
