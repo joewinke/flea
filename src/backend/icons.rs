@@ -79,8 +79,16 @@ fn class_icon(class: &str) -> &'static str {
 mod tests {
     use super::*;
 
+    // Sample input, rows copied from /usr/share/mime/generic-icons: one "type:icon" pair per line.
+    const GENERIC_ROWS: &str = concat!(
+        "model/vrml:x-office-document\n",
+        "application/x-executable:application-x-executable\n",
+        "application/zip:package-x-generic\n",
+    );
+
+    // A fixture table rather than this box's own, because update-mime-database merges /usr/share/mime/packages and an installed application can add the very rows these fallbacks are asserted to miss.
     fn names() -> Names {
-        Names::load()
+        Names::from_str(GENERIC_ROWS)
     }
 
     // A regular file at 0644, which is what every mode-independent case here means.
@@ -138,7 +146,7 @@ mod tests {
     #[test]
     fn an_unlisted_application_type_is_not_an_executable_unless_it_is_one() {
         let n = names();
-        // application/pkcs7-mime is one of the 190 types with no generic-icons entry.
+        // application/pkcs7-mime is unlisted in the fixture, as it is in this box's own table.
         assert_eq!(n.icon_for(Some("application/pkcs7-mime"), false, PLAIN), "application-x-generic");
         assert_eq!(n.icon_for(Some("application/x-sharedlib"), false, EXECUTABLE), "application-x-executable");
     }
@@ -146,7 +154,7 @@ mod tests {
     #[test]
     fn a_listed_application_type_still_wins_over_the_class_fallback() {
         let n = names();
-        // application/x-executable and application/zip both have generic-icons entries.
+        // application/x-executable and application/zip both have generic-icons entries on a real box.
         assert_eq!(n.icon_for(Some("application/x-executable"), false, PLAIN), "application-x-executable");
         assert_eq!(n.icon_for(Some("application/zip"), false, PLAIN), "package-x-generic");
     }
@@ -155,5 +163,15 @@ mod tests {
     fn a_vanished_row_reports_mode_zero_and_still_gets_a_real_name() {
         let n = names();
         assert_eq!(n.icon_for(Some("application/pkcs7-mime"), false, 0), "application-x-generic");
+    }
+
+    // The only test here that reads this box's own table, and it asserts the module's promise rather than any row's value.
+    #[test]
+    fn the_live_table_parses_and_never_answers_an_empty_name() {
+        let n = Names::load();
+        assert_eq!(n.icon_for(None, true, 0o040755), "folder");
+        for mime in ["image/jpeg", "application/zip", "application/pkcs7-mime", "nonsense/nothing", ""] {
+            assert!(!n.icon_for(Some(mime), false, PLAIN).is_empty(), "empty name for {mime}");
+        }
     }
 }

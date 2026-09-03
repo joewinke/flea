@@ -280,10 +280,25 @@ mod tests {
         assert_eq!(s.exec[2], "two words");
     }
 
+    // Sample input, the MimeType field of a real /usr/share/thumbnailers file, shortened to the types asserted here.
+    fn shipped() -> Thumbnailers {
+        let evince = "[Thumbnailer Entry]\nTryExec=evince-thumbnailer\nExec=evince-thumbnailer -s %s %u %o\nMimeType=application/pdf;image/tiff\n";
+        let glycin = "[Thumbnailer Entry]\nTryExec=/usr/bin/glycin-thumbnailer\nExec=/usr/bin/glycin-thumbnailer --input %u --output %o --size %s\nMimeType=image/jpeg;image/heif;image/tiff\n";
+        let ffmpeg = "[Thumbnailer Entry]\nTryExec=ffmpegthumbnailer\nExec=ffmpegthumbnailer -i %i -o %o -s %s -f\nMimeType=video/mp4;video/webm;video/matroska\n";
+        Thumbnailers::from_entries(
+            &[
+                ("/usr/share/thumbnailers/evince.thumbnailer".to_string(), evince.to_string()),
+                ("/usr/share/thumbnailers/ffmpegthumbnailer.thumbnailer".to_string(), ffmpeg.to_string()),
+                ("/usr/share/thumbnailers/glycin-image-rs.thumbnailer".to_string(), glycin.to_string()),
+            ],
+            &al(),
+        )
+    }
+
     #[test]
-    fn the_heaviest_shipped_field_parses_on_this_box() {
-        let a = Aliases::load();
-        let t = Thumbnailers::load(&a);
+    fn the_heaviest_shipped_field_parses() {
+        let a = al();
+        let t = shipped();
         assert!(t.for_mime("image/jpeg", &a).is_some());
         assert!(t.for_mime("video/mp4", &a).is_some());
         assert!(t.for_mime("video/webm", &a).is_some());
@@ -294,11 +309,16 @@ mod tests {
     }
 
     #[test]
-    fn a_type_two_shipped_files_declare_goes_to_the_first_in_path_order() {
-        let a = Aliases::load();
-        let t = Thumbnailers::load(&a);
+    fn a_type_two_files_declare_goes_to_the_first_in_path_order() {
         // Both evince.thumbnailer and glycin-image-rs.thumbnailer declare image/tiff, and deleting the sort reddens this only while read_dir happens to return glycin first, which POSIX does not promise.
-        assert_eq!(t.for_mime("image/tiff", &a).unwrap().exec[0], "evince-thumbnailer");
+        assert_eq!(shipped().for_mime("image/tiff", &al()).unwrap().exec[0], "evince-thumbnailer");
+    }
+
+    // The only test here that reads this box's own directory, and it asserts the read rather than which thumbnailers are installed, because not one of them is even an optional dependency.
+    #[test]
+    fn the_live_directory_is_read_without_a_panic() {
+        let a = Aliases::load();
+        assert!(Thumbnailers::load(&a).for_mime("nonsense/nothing", &a).is_none());
     }
 
     #[test]

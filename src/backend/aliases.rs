@@ -47,8 +47,15 @@ impl Aliases {
 mod tests {
     use super::*;
 
+    // Sample input, rows copied from /usr/share/mime/aliases: the alias first, then its canonical name.
+    const ALIAS_ROWS: &str = concat!(
+        "image/heic image/heif\n",
+        "video/x-matroska video/matroska\n",
+    );
+
+    // A fixture table rather than this box's own, because update-mime-database merges /usr/share/mime/packages and an installed application can add an alias.
     fn a() -> Aliases {
-        Aliases::load()
+        Aliases::from_str(ALIAS_ROWS)
     }
 
     #[test]
@@ -90,5 +97,15 @@ mod tests {
         let a = Aliases::from_str("noSpaceHere\n\nimage/heic image/heif\n  \n");
         assert_eq!(a.canonical("image/heic"), "image/heif");
         assert_eq!(a.canonical("noSpaceHere"), "noSpaceHere");
+    }
+
+    // The only test here that reads this box's own file, and it asserts the property the row path depends on: one hop settles a type, because a canonical name is never itself an alias.
+    #[test]
+    fn the_live_table_resolves_in_one_hop() {
+        let a = Aliases::load();
+        for mime in ["image/heic", "video/x-matroska", "image/jpeg", "nonsense/nothing"] {
+            let once = a.canonical(mime).to_string();
+            assert_eq!(a.canonical(&once), once, "{mime} needs a second hop");
+        }
     }
 }
