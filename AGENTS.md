@@ -3596,3 +3596,41 @@ key press fires a compositor bind, so `omarchy-drive hotkey --global super w` is
 on the ACTIVE window, so assert the active window is the one the run launched before sending it, and
 never call `hl.dsp.window.close()` with no argument: it returns `ok` rather than printing a signature
 and acts on whatever is active, which may be a window you did not open.
+
+### The rail pans, the arrows step between the views, and the wheel chords share one map
+
+Three operator reports drove one branch: the rail could not scroll at all, the rail that outgrew
+its own height could not show its bottom rows by any means, and the arrows were dead keys while
+browsing, because `Left`/`Right` are bound to `seekBack`/`seekForward`, which resolve to nothing
+until a preview is open.
+
+**The rail's rows live inside a `Flickable` now.** The rail was a bare `Column`, and a wheel over
+it did nothing: every row is already drawn (see `railItemFor`'s no-virtualization note), so a
+scroll had no viewport to pan and no verb to answer. The list's wheel verb is a pan, and the
+rail's is the same one now, with `boundsBehavior: StopAtBounds` and a clipped viewport; nothing
+chases the cursor back, which is the same split the list draws.
+
+**A Flickable consumes every wheel its children sit under before any WheelHandler in the tree can
+answer one.** The first chord attempt used `WheelHandler` with `acceptedModifiers`, and over both
+the ListView and the rail the chords were silent while the view under them scrolled — driven on a
+live desktop with injected wheel events carrying known modifier state, handlers attached as far up
+as the window root and as deep as the row under the pointer. The chords therefore arrive through a
+`MouseArea` (`acceptedButtons: Qt.NoButton`, so presses and drags are untouched): a plain wheel is
+declined and the view pans natively, the modified chords are answered through `ui/js/Wheel.js`.
+
+**`ui/js/Wheel.js` exists because the same modifier must mean the same thing over both surfaces.**
+Alt steps the cursor a row a notch, Ctrl jumps to either end, Shift extends the selection (list
+only; the rail's rows carry no selection, so Shift pans there). Two environment facts the map
+honours, both caught by a console probe logging the raw event: a natural-scroll setup inverts the
+axis before the event arrives, so `direction()` folds in the event's own `inverted` flag; and this
+operator's input stack rewrites Alt+wheel onto the HORIZONTAL axis (`angleDelta.x = ±120`,
+`angleDelta.y = 0`, modifiers intact), so `axisDelta()` reads whichever axis moved. With only the
+vertical read, Alt walked up and only up under both verb assignments. Every cursor move the rail
+has reveals its row; the list's chords ride `moveCursor`/`setCursorView`, which already scroll the
+row they land on into view. The budget took its two cuts: the favourites merge to
+`Places.favorites`, the rail menu's chosen-row dispatch to `Mounts.release`.
+
+**The arrows step between the views.** With no preview open and no grid, `lookup` resolves Left in
+the list to `focusRail` and either arrow in the rail to `focusList`; Tab and Esc keep exactly what
+they had. `tests/js/focus.js` carries the new lookups, `tests/js/wheel.js` the map, the folds and
+the clamps.
