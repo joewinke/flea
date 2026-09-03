@@ -23,4 +23,11 @@ function run(check) {
     // The end a Ctrl wheel lands on, wheel-down being the last row and wheel-up the first.
     check("ctrl down lands on the last row", Wheel.end(1, 5), 4)
     check("ctrl up lands on the first", Wheel.end(-1, 5), 0)
+
+    // Direction as the item order reads it: raw axis inverted by a natural-scroll setup, and the
+    // event's inverted flag restoring the physical turn the hand made.
+    check("a raw wheel-down is the next row", Wheel.direction(-120, false), 1)
+    check("a raw wheel-up is the previous row", Wheel.direction(120, false), -1)
+    check("an inverted wheel-down still steps to the next row", Wheel.direction(120, true), 1)
+    check("an inverted wheel-up still steps to the previous row", Wheel.direction(-120, true), -1)
 }

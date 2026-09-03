@@ -29,3 +29,13 @@ function stepped(index, dir, count) {
 function end(dir, count) {
     return dir > 0 ? count - 1 : 0
 }
+
+// The wheel's direction as the item order reads it: a wheel-down steps to the next row, whatever
+// the user's scrolling convention is. A natural-scroll setup inverts the axis before the event
+// arrives, so the raw sign says up when the hand rolled down, and the event's own inverted flag
+// is what restores the physical direction. Both surfaces read this, so the same wheel turn steps
+// the same way over the list and the rail.
+function direction(angleDeltaY, inverted) {
+    var dir = angleDeltaY < 0 ? 1 : -1
+    return inverted ? -dir : dir
+}

@@ -340,7 +340,7 @@ Item {
         acceptedButtons: Qt.NoButton
         onWheel: function (wheel) {
             if (root.renamingIndex >= 0) { wheel.accepted = false; return }
-            var dir = wheel.angleDelta.y < 0 ? 1 : -1
+            var dir = Wheel.direction(wheel.angleDelta.y, wheel.inverted)
             var meaning = Wheel.meaning(wheel.modifiers)
             if (meaning === "viewport" || meaning === "extend") { wheel.accepted = false; return }
             if (meaning === "end")
