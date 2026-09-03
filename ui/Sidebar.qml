@@ -339,6 +339,8 @@ Item {
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
         onWheel: function (wheel) {
+            // The chord probe, at full verbosity: everything the event carried, into the shell log.
+            console.log("WHEEL mods=" + wheel.modifiers + " x=" + wheel.angleDelta.x + " y=" + wheel.angleDelta.y + " inv=" + wheel.inverted)
             if (root.renamingIndex >= 0) { wheel.accepted = false; return }
             var dir = Wheel.direction(wheel.angleDelta.y, wheel.inverted)
             var meaning = Wheel.meaning(wheel.modifiers)
