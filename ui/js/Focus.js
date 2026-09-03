@@ -2,6 +2,7 @@
 
 .import "Eject.js" as Eject
 .import "Filter.js" as Filter
+.import "Nav.js" as Nav
 .import "Keymap.js" as Keymap
 .import "Mounts.js" as Mounts
 .import "Ops.js" as Ops
