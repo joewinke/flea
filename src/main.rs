@@ -20,6 +20,7 @@ fn usage(message: &str) -> ! {
     eprintln!("flea: {}", message);
     eprintln!("usage: flea [--tui|--gui] [--select <uri|path>] [path]");
     eprintln!("       flea --default [off]");
+    eprintln!("       flea --version");
     exit(2)
 }
 
@@ -36,6 +37,13 @@ fn select_target(raw: &str) -> Option<(PathBuf, PathBuf)> {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+
+    // Bare, so a script can read it without parsing. Checked before every other mode: the only
+    // way to tell which Flea is installed is to ask it, and updates here are a manual git pull.
+    if args.iter().any(|a| a == "--version") {
+        println!("{}", env!("CARGO_PKG_VERSION"));
+        exit(0);
+    }
 
     if args.iter().any(|a| a == "--backend") {
         exit(backend::run::run());

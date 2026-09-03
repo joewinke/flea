@@ -20,6 +20,15 @@ check() {
   fi
 }
 
+# --version answers before any other mode, prints bare, and agrees with the crate it was built
+# from, so a stale binary beside a bumped Cargo.toml cannot report the new number.
+want=$(grep -m1 '^version = ' Cargo.toml | cut -d'"' -f2)
+out=$($BIN --version 2>&1 </dev/null); rc=$?
+check "--version exits 0" "0" "$rc"
+check "--version prints the crate version" "$want" "$out"
+out=$($BIN --version --gui 2>&1 </dev/null)
+check "--version wins over another mode" "$want" "$out"
+
 # No tty on either handle and no display: it must refuse, not guess.
 out=$(env -u WAYLAND_DISPLAY -u DISPLAY $BIN --gui 2>&1 </dev/null)
 check "no display refuses" "1" "$(echo "$out" | grep -c 'no graphical session')"
