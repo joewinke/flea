@@ -198,13 +198,15 @@ fn handle_line(
     ops: &mut Ops,
 ) -> Control {
     match parse_request(line) {
-        Request::List { path, first, hidden } => {
+        Request::List { path, first, hidden, dirs } => {
             // A new listing replaces whatever the walk was filling, so the walk ends before the scan starts.
             if finish_search(out, st, true) {
                 forget_rows(st, pool);
             }
             match scan(&path, hidden) {
                 Ok((mut l, read_ms)) => {
+                    // An absent "dirs" keeps the standing choice, the same rule sort obeys.
+                    st.dirs_first = dirs.unwrap_or(st.dirs_first);
                     let sort_ms = sort_by_name(&mut l, false, st.dirs_first);
                     // base and listing only move together, so a failed list cannot mix them.
                     st.base = PathBuf::from(&path);
@@ -258,9 +260,8 @@ fn handle_line(
                 Ok(order) => {
                     // read carries the metadata pass here, 0.0 for name; see docs/protocol.md "listed".
                     // An absent "dirs" keeps the session's standing choice; a present one sets it.
-                    let dirs_first = dirs.unwrap_or(st.dirs_first);
-                    st.dirs_first = dirs_first;
-                    let (pass_ms, sort_ms) = sort_listing(&mut st.listing, &st.base, order, desc, dirs_first);
+                    st.dirs_first = dirs.unwrap_or(st.dirs_first);
+                    let (pass_ms, sort_ms) = sort_listing(&mut st.listing, &st.base, order, desc, st.dirs_first);
                     forget_rows(st, pool);
                     writeln!(out, "{}", listed_line(st.listing.len(), pass_ms, sort_ms, dev_of(&st.base))).ok();
                 }

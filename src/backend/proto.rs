@@ -2,7 +2,7 @@ use crate::error::FleaError;
 use crate::json::{escape, field_bool, field_bool_opt, field_str, field_str_array, field_usize, field_usize_array};
 
 pub enum Request {
-    List { path: String, first: usize, hidden: bool },
+    List { path: String, first: usize, hidden: bool, dirs: Option<bool> },
     Window { start: usize, count: usize },
     Sort { by: String, desc: bool, dirs: Option<bool> },
     Search { path: String, query: String, hidden: bool },
@@ -48,6 +48,8 @@ pub fn parse_request(line: &str) -> Request {
             first: field_usize(line, "first").unwrap_or(0),
             // A missing hidden is false, so an older client's request still lists dotfile-free.
             hidden: field_bool(line, "hidden"),
+            // A missing dirs keeps the session's standing folders-first choice, the same rule sort obeys.
+            dirs: field_bool_opt(line, "dirs"),
         },
         Some("window") => Request::Window {
             start: field_usize(line, "start").unwrap_or(0),
@@ -200,7 +202,7 @@ mod tests {
     #[test]
     fn parses_each_request_shape() {
         match parse_request(r#"{"c":"list","path":"/home/gm","first":350}"#) {
-            Request::List { path, first, hidden } => {
+            Request::List { path, first, hidden, dirs: _ } => {
                 assert_eq!(path, "/home/gm");
                 assert_eq!(first, 350);
                 assert!(!hidden);

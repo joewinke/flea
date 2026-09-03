@@ -42,10 +42,8 @@ Item {
     readonly property bool forRail: root.railEntries.length > 0
     signal railChosen(string action, string key)
 
-    // ui/Header.qml's own entrance, the third face of this one instance: openForHeader() flips the
-    // entries to ui/js/Menu.js headerEntries (the column toggles and the Advanced group, built from
-    // qs module ViewState's hidden columns and the pane's showHidden), and every row flows back
-    // through chosen() like the listing's own. A row's chosen verb routes by prefix in ui/Pane.qml.
+    // ui/Header.qml's own entrance, the third face of this one instance: the column toggles and the
+    // state rows built from qs module ViewState, flowing back through chosen() like the listing's.
     property bool forHeader: false
     function openForHeader(scenePoint) {
         root.forHeader = true
@@ -78,9 +76,8 @@ Item {
     // The row list this menu currently offers; a test reads this back through shell.qml's IPC.
     readonly property var entries: root.buildEntries()
 
-    // The construction lives in ui/js/Menu.js now, so the rows are unit-testable without a window:
-    // listingEntries(p) builds the listing's rows from the pane's state, headerEntries() the column
-    // titles' own rows on a right click (see ui/Header.qml), and this file only routes between them.
+    // The construction lives in ui/js/Menu.js now, so the rows are unit-testable without a window;
+    // this file only routes between the three faces.
     function buildEntries() {
         // Which release a rail row offers is the rail's knowledge, not the listing's, so the rail
         // hands its rows in already built; see ui/js/Mounts.js "railMenu".
@@ -203,12 +200,17 @@ Item {
         root.chosen(action)
     }
 
-    // One signal covers every submenu: the row's own action, a colon, and the entry chosen inside it.
-    function chooseSub(id) {
+    // One signal covers every submenu: a row with its own whole action fires it as named; a Taildrop
+    // peer or an archive format composes the row's parent verb with its id, as those two answer.
+    function chooseSub(sub) {
         var entry = root.entries[root.openSubmenuRow]
         root.close()
-        if (entry)
-            root.chosen(entry.action + ":" + id)
+        if (!entry)
+            return
+        if (sub.action !== undefined && sub.action.length > 0)
+            root.chosen(sub.action)
+        else
+            root.chosen(entry.action + ":" + sub.id)
     }
 
     function openSubmenu(index) {
@@ -245,6 +247,16 @@ Item {
 
     Flea.Shadow {
         surface: flyout
+    }
+
+    // Hover and wheel blocking: an event that neither blocks would drive the rows beneath an open
+    // menu. No buttons, so presses stay with the rows.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        hoverEnabled: true
+        onWheel: function (wheel) { wheel.accepted = true }
+        z: 1
     }
 
     Rectangle {
@@ -291,6 +303,13 @@ Item {
     Rectangle {
         id: flyout
         visible: root.submenuOpen
+        // The same blocking MouseArea the frame's backdrop carries, scaled to the flyout.
+        MouseArea {
+            anchors.fill: parent
+            acceptedButtons: Qt.NoButton
+            hoverEnabled: true
+            onWheel: function (wheel) { wheel.accepted = true }
+        }
         x: frame.x + frame.width
         // peers.y already carries the inset, so the flyout frame itself stays on the row grid.
         y: frame.y + root.submenuOffset()
@@ -315,11 +334,14 @@ Item {
                     width: peers.width
                     // A Taildrop peer is a machine and takes the sidebar's own server mark; an archive
                     // format is a file about to exist and takes the archive mark.
+                    // A row with its own whole action (the Advanced group) fires it directly; a
+                    // Taildrop peer or an archive format composes the parent verb with its id.
                     entry: ({ label: subRow.modelData.label, action: "",
-                              glyph: root.entries[root.openSubmenuRow].action === "taildrop" ? "server" : "archive" })
+                              glyph: subRow.modelData.glyph !== undefined ? subRow.modelData.glyph
+                                    : root.entries[root.openSubmenuRow].action === "taildrop" ? "server" : "archive" })
                     current: root.submenuCursor === subRow.index
                     onHoverEntered: root.submenuCursor = subRow.index
-                    onActivated: root.chooseSub(subRow.modelData.id)
+                    onActivated: root.chooseSub(subRow.modelData)
                 }
             }
         }
