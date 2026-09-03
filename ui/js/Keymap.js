@@ -37,6 +37,8 @@ function lookup(key, text, modifiers) {
     case Qt.Key_Up: return "cursorUp"
     case Qt.Key_Return: return "open"
     case Qt.Key_Enter: return "open"
+    case Qt.Key_Home: return "cursorFirst"
+    case Qt.Key_End: return "cursorLast"
     case Qt.Key_Backspace: return "parent"
     case Qt.Key_Delete: return "trash"
     case Qt.Key_Escape: return "escape"

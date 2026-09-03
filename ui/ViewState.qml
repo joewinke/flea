@@ -20,11 +20,25 @@ QtObject {
     // session sends carries it, and the header menu's flip re-lists, which is toggleHidden's own
     // gesture for a state that changes what the listing shows.
     property bool foldersFirst: true
+    // The rest of the workspace the user expects to come back: dotfiles, view mode later.
+    property bool showHidden: false
+    property string sortBy: "name"
+    property bool sortDesc: false
 
     function toggleFoldersFirst() {
         root.foldersFirst = !root.foldersFirst
         save()
     }
+
+    function save() {
+        store.setText(JSON.stringify({ hiddenCols: root.hiddenCols, foldersFirst: root.foldersFirst,
+                                       showHidden: root.showHidden, sortBy: root.sortBy, sortDesc: root.sortDesc }, null, 2) + "\n")
+    }
+
+    onFoldersFirstChanged: save()
+    onShowHiddenChanged: save()
+    onSortByChanged: save()
+    onSortDescChanged: save()
 
     // Flipped by ui/Pane.qml's onChosen, when a header-menu row answers "col:<key>".
     function toggleColumn(key) {
@@ -40,7 +54,6 @@ QtObject {
         if (!had)
             next.push(key)
         root.hiddenCols = next
-        store.setText(JSON.stringify({ hiddenCols: root.hiddenCols, foldersFirst: root.foldersFirst }, null, 2) + "\n")
     }
 
     function load() {
@@ -50,6 +63,12 @@ QtObject {
                 root.hiddenCols = parsed.hiddenCols
             if (parsed && parsed.foldersFirst !== undefined)
                 root.foldersFirst = parsed.foldersFirst
+            if (parsed && parsed.showHidden !== undefined)
+                root.showHidden = parsed.showHidden
+            if (parsed && parsed.sortBy !== undefined)
+                root.sortBy = parsed.sortBy
+            if (parsed && parsed.sortDesc !== undefined)
+                root.sortDesc = parsed.sortDesc
         } catch (e) {
             // A file another hand wrote is not this file's problem: the defaults stand.
         }
@@ -60,6 +79,7 @@ QtObject {
                ? Quickshell.env("XDG_CONFIG_HOME") : Quickshell.env("HOME") + "/.config") + "/flea/view.json"
         watchChanges: false
         printErrors: false
+        blockLoading: true
         onLoaded: root.load()
         // A missing file lands here on first run, and the write seeds it so the next start reads.
         onLoadFailed: root.save()

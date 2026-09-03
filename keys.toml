@@ -118,6 +118,14 @@ key = "Enter"
 action = "open"
 
 [[code]]
+key = "Home"
+action = "cursorFirst"
+
+[[code]]
+key = "End"
+action = "cursorLast"
+
+[[code]]
 key = "Backspace"
 action = "parent"
 

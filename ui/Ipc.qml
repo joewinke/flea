@@ -76,6 +76,7 @@ QtObject {
         // A peer is named by whoever is on the tailnet, so a test reads the name here rather than
         // knowing it. No separator branch: a flyout holds only Archive.formatEntries or Taildrop
         // peers, and both build {id, label} rows only.
+        function contextMenuSubmenuGlyphs(): string { return root.pane.menuSubmenuGlyphs() }
         function contextMenuSubmenuEntries(): string {
             return root.pane.menuSubmenuEntries().map(function (e) { return e.label }).join("|")
         }

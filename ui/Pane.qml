@@ -158,7 +158,10 @@ FocusScope {
     function applyPendingSelect() { Nav.applyPendingSelect(root) }
     function refresh(selectPath) { Nav.refresh(root, selectPath) }
 
-    function open(newPath) { Nav.open(root, newPath) }
+    function open(newPath) {
+        Nav.open(root, newPath)
+        Sort.restore(root, ViewState.sortBy, ViewState.sortDesc) // the saved sort rides every open
+    }
 
     function openWithoutHistory(newPath) { Nav.openWithoutHistory(root, newPath) }
 
@@ -214,7 +217,6 @@ FocusScope {
     function openCursor() { Nav.openCursor(root, wire.opener) }
 
     // A path the caller already resolved, for the columns view's neighbour rows, which have no cursor.
-    function openFile(path) { wire.opener.open(path) }
 
     function openParent() { Nav.parent(root) }
 
@@ -222,7 +224,6 @@ FocusScope {
         return base === "/" ? "/" + name : base + "/" + name
     }
 
-    function typeAhead(character) { Nav.typeAhead(root, character, typedClear) }
 
     Flea.PaneWire {
         id: wire
@@ -364,9 +365,8 @@ FocusScope {
     function menuEntries() { return menu.entries }
     function menuSubmenuGlyphs() { return menu.submenuGlyphs() }
     function menuSubmenuEntries() { return menu.submenuEntries }
+    function menuSubmenuGlyphs() { return menu.submenuGlyphs() }
 
-    function openConvert() { Ops.openConvert(root) }
-    function moveToDropbox() { Ops.moveToDropbox(root, sidebar.dropboxReady ? root.home + "/Dropbox" : "") }
     // The three foreign programs live in ui/PaneWire.qml with the backend's replies; these only name the row.
     function copyShareLink() { wire.shareLink.copy(root.join(root.path, root.cursorRow ? root.cursorRow.n : "")) }
     function sendTaildrop(peerId) { Ops.sendTaildrop(root, wire.taildrop, peerId) }

@@ -113,10 +113,10 @@ function act(action, root) {
             root.message("No row under the cursor to open a menu on.", false)
         return
     case "extract": Ops.extract(root); return
-    case "dropbox": root.moveToDropbox(); return
+    case "dropbox": Ops.moveToDropbox(root, root.sidebar.dropboxReady ? root.home + "/Dropbox" : ""); return
     case "sharelink": root.copyShareLink(); return
     // Convert opens the one popup this whole design has; every other operation answers without one.
-    case "convert": root.openConvert(); return
+    case "convert": Ops.openConvert(root); return
     // The header answers the same two through ui/Pane.qml, so the key and the click share one route.
     case "sortNext": Sort.next(root); return
     case "sortReverse": Sort.reverse(root); return
@@ -251,7 +251,7 @@ function handleKey(event, root, sidebar) {
     // Type-ahead is the fallback, so any printable key that is not bound jumps. A standing filter is
     // already a name match over these rows, so the two never run at once and never disagree.
     if (root.shown === null && event.text.length === 1 && event.text >= " ") {
-        root.typeAhead(event.text)
+        Nav.typeAhead(root, event.text, root.typedClear)
         return true
     }
     return false

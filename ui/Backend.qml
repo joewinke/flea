@@ -49,6 +49,8 @@ Item {
     // Only two things move it: list re-sorts by name ascending below, and an accepted sort, which
     // ui/js/Sort.js records here because it is the one place that knows which keys are accepted.
     property string sortBy: "name"
+    onSortByChanged: ViewState.sortBy = sortBy
+    onSortDescChanged: ViewState.sortDesc = sortDesc
     property bool sortDesc: false
 
     // What the settle gate asserts: how many thumb requests this process has attempted; see AGENTS.md.
