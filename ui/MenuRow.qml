@@ -164,6 +164,10 @@ Item {
     TapHandler {
         enabled: !root.isSeparator
         acceptedButtons: Qt.LeftButton
+        // ReleaseWithinBounds takes the point exclusively on press: the menu stands over the
+        // listing, and the DragThreshold default's passive grab let every tap fall through to the
+        // row beneath, which read as the menu reaching through and moving the selection.
+        gesturePolicy: TapHandler.ReleaseWithinBounds
         onTapped: root.activated()
     }
 }

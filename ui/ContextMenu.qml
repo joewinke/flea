@@ -114,7 +114,7 @@ Item {
     visible: root.opened
     z: 1
 
-    // Takes a point in scene coordinates and keeps the whole menu inside the pane it belongs to.
+    // Keeps the whole menu inside the pane it belongs to.
     function openAt(scenePoint) {
         root.heldEntries = root.buildEntries()
         root.forRail = false
@@ -218,7 +218,7 @@ Item {
         root.submenuCursor = 0
     }
 
-    // Rows above the open one are a mix of full rows and separators, so the offset is summed, not multiplied.
+    // Rows above the open one mix rows and separators, so the offset is summed, not multiplied.
     function submenuOffset() {
         var y = 0
         for (var i = 0; i < root.openSubmenuRow; i++)
@@ -345,9 +345,8 @@ Item {
         }
     }
 
-    // One focus catcher for the whole menu: real QML focus never moves into the Repeater rows
-    // themselves, so every key lands here regardless of which level is open. They arrive through
-    // keys.toml's own table, so j and k step this list the way they step every other one.
+    // One focus catcher for the whole menu: real QML focus never moves into the Repeater rows, so
+    // every key lands here at either level, through keys.toml's own table — j and k step the list.
     Item {
         id: keyCatcher
         anchors.fill: parent
