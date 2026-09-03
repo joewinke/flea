@@ -5,6 +5,7 @@ import "js/Drag.js" as DragOps
 import "js/Filter.js" as Filter
 import "js/Tap.js" as Tap
 import "js/Thumbs.js" as Thumbs
+import "js/Wheel.js" as Wheel
 
 // The listing's render, scroll and settle-triggered refetch, split out of Pane.qml; reaches Pane's state through the pane reference and the context menu through menu, both handed in at instantiation.
 ListView {
@@ -40,6 +41,24 @@ ListView {
     highlightMoveDuration: 0
     // Every property the delegate draws is a binding on index, so a row leaving the buffer is re-bound rather than rebuilt.
     reuseItems: true
+
+    // The modified wheel, routed by the map ui/js/Wheel.js keeps and the rail reads too. The plain
+    // wheel is not accepted, so it falls through to the ListView and pans, the cursor following in
+    // onContentYChanged below; the chords reach the item level, where moveCursor and setCursorView
+    // already scroll the row they land on into view and extendSelection is Shift+Up/Down's own verb.
+    WheelHandler {
+        acceptedModifiers: Qt.AltModifier | Qt.ControlModifier | Qt.ShiftModifier
+        onWheel: function (wheel) {
+            var dir = wheel.angleDelta.y < 0 ? 1 : -1
+            var meaning = Wheel.meaning(wheel.modifiers)
+            if (meaning === "cursor")
+                Filter.moveCursor(root.pane, dir)
+            else if (meaning === "end")
+                Filter.setCursorView(root.pane, Wheel.end(dir, root.pane.shownTotal))
+            else if (meaning === "extend")
+                root.pane.extendSelection(dir)
+        }
+    }
 
     delegate: Flea.Row {
         id: cell
