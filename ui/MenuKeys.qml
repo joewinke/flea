@@ -1,22 +1,30 @@
 import QtQuick
-import qs.Commons
 import "." as Flea
 import "js/Keymap.js" as Keymap
 import "js/Menu.js" as Menu
 
 // One focus catcher for the whole menu: real QML focus never moves into the Repeater rows, so
 // every key lands here at either level, through keys.toml's own table — j and k step the list.
+// Split out of ui/ContextMenu.qml for the file budget; `menu` is the ContextMenu it serves.
 Item {
     id: keyCatcher
     anchors.fill: parent
     focus: true
 
+    property var menu: null
+
     Keys.onPressed: function (event) {
+        if (menu === null)
+            return
         var action = Keymap.lookup(event.key, event.text, event.modifiers)
+        // Escape unwinds one level at a time: the flyout, then the keep/trash pair, then the menu.
         if (action === "escape") {
             if (menu.submenuOpen)
                 menu.openSubmenuRow = -1
-            else
+            else if (menu.confirming) {
+                menu.confirming = false
+                menu.heldEntries = menu.buildEntries()
+            } else
                 menu.close()
             event.accepted = true
             return
@@ -51,6 +59,12 @@ Item {
                     menu.choose(entry.action)
             }
             event.accepted = true
+            return
         }
-        if ((action === "seekBack" || action === "cursorLeft") && menu.submenuOpen) { menu.openSubmenuRow = -1; event.accepted = true; return }
-
+        if ((action === "seekBack" || action === "cursorLeft") && menu.submenuOpen) {
+            menu.openSubmenuRow = -1
+            event.accepted = true
+            return
+        }
+    }
+}
