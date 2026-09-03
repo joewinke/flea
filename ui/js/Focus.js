@@ -42,7 +42,11 @@ function lookup(event, root) {
             return action
         if (root.viewMode === "grid")
             return action === "seekBack" ? "cursorLeft" : "cursorRight"
-        return ""
+        // Nothing open and no grid: Left in the list steps into the rail; in the rail both arrows
+        // step back out. Right in the list stays free, so nothing pulls focus sideways on it.
+        if (root.focusView === RAIL)
+            return "focusList"
+        return action === "seekBack" ? "focusRail" : ""
     }
     // The PDF viewer's own four. Minus, plus, e and l mean nothing anywhere else, so they stay
     // silent rather than reaching act()'s "not built yet" while browsing.
@@ -223,6 +227,11 @@ function handleKey(event, root, sidebar) {
     }
     if (action === "focusNext") {
         root.focusView = next(root.focusView)
+        return true
+    }
+    // The arrows' step between the views, lookup's seekBack/seekForward branch above.
+    if (action === "focusRail" || action === "focusList") {
+        root.focusView = action === "focusRail" ? RAIL : LIST
         return true
     }
     // The sheet is global, unlike addNetwork, so it answers from the rail as well as the list. It

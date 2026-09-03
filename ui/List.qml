@@ -5,6 +5,7 @@ import "js/Drag.js" as DragOps
 import "js/Filter.js" as Filter
 import "js/Tap.js" as Tap
 import "js/Thumbs.js" as Thumbs
+import "js/Wheel.js" as Wheel
 
 // The listing's render, scroll and settle-triggered refetch, split out of Pane.qml; reaches Pane's state through the pane reference and the context menu through menu, both handed in at instantiation.
 ListView {
@@ -40,6 +41,31 @@ ListView {
     highlightMoveDuration: 0
     // Every property the delegate draws is a binding on index, so a row leaving the buffer is re-bound rather than rebuilt.
     reuseItems: true
+
+    // The wheel chords, caught over the view. A Flickable consumes every wheel its children sit
+    // under before any WheelHandler in the tree can answer one, so the chords route through this
+    // MouseArea instead: a plain wheel is declined here and the ListView pans natively, the cursor
+    // following it in onContentYChanged below, while the chords are answered through the map
+    // ui/js/Wheel.js keeps, the same one the rail reads. moveCursor and setCursorView already
+    // scroll the row they land on into view, and extendSelection is Shift+Up/Down's own verb.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        onWheel: function (wheel) {
+            var dir = Wheel.direction(Wheel.axisDelta(wheel), wheel.inverted)
+            var meaning = Wheel.meaning(wheel.modifiers)
+            if (meaning === "viewport") { wheel.accepted = false; return }
+            // A rename field owns the keyboard, so the chords go quiet over it too.
+            if (root.pane.renamingIndex >= 0) { wheel.accepted = true; return }
+            if (meaning === "cursor")
+                Filter.moveCursor(root.pane, dir)
+            else if (meaning === "end")
+                Filter.setCursorView(root.pane, Wheel.end(dir, root.pane.shownTotal))
+            else if (meaning === "extend")
+                root.pane.extendSelection(dir)
+            wheel.accepted = true
+        }
+    }
 
     delegate: Flea.Row {
         id: cell

@@ -26,6 +26,7 @@ import "sort.js" as SortSuite
 import "taildrop.js" as TaildropSuite
 import "tap.js" as TapSuite
 import "thumbs.js" as ThumbsSuite
+import "wheel.js" as WheelSuite
 
 Item {
     Component.onCompleted: {
@@ -67,6 +68,7 @@ Item {
         TaildropSuite.run(check)
         TapSuite.run(check)
         ThumbsSuite.run(check)
+        WheelSuite.run(check)
 
         for (var i = 0; i < failures.length; i++) {
             console.log("FAIL " + failures[i])

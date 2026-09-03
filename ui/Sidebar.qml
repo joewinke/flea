@@ -5,6 +5,7 @@ import qs.Commons
 import "js/Icons.js" as Icons
 import "js/Mounts.js" as Mounts
 import "js/Places.js" as Places
+import "js/Wheel.js" as Wheel
 
 // The rail is Favorites, Network and Devices, three groups sharing one flat cursor space and one
 // row delegate, ui/SidebarRow.qml. Each group occupies a contiguous run of "entries" in that
@@ -102,25 +103,11 @@ Item {
         onRenamed: root.reloadBookmarks()
     }
 
-    // Home is always first and is not in either file, so it is prepended rather than parsed.
+    // Home is always first and is not in either file, so it is prepended rather than parsed; the
+    // merge and its first-position-wins rule are Places.favorites', which tests/js/places.js checks.
     function rebuild() {
         var home = Quickshell.env("HOME")
-        var favs = [{ path: home, label: "Home", group: "favorite", kind: "favorite", glyph: Icons.sidebarGlyphFor("Home") }]
-        var dirs = Places.userDirs(userDirsFile.text(), home)
-        var marks = Places.bookmarks(bookmarksFile.text())
-        var seen = {}
-        seen[home] = true
-        for (var i = 0; i < dirs.length; i++) {
-            if (!seen[dirs[i].path]) { seen[dirs[i].path] = true; favs.push(root.taggedFavorite(dirs[i])) }
-        }
-        for (var j = 0; j < marks.length; j++) {
-            if (!seen[marks[j].path]) { seen[marks[j].path] = true; favs.push(root.taggedFavorite(marks[j])) }
-        }
-        root.favoriteEntries = favs
-    }
-
-    function taggedFavorite(e) {
-        return { path: e.path, label: e.label, group: "favorite", kind: "favorite", glyph: Icons.sidebarGlyphFor(e.label) }
+        root.favoriteEntries = Places.favorites(home, userDirsFile.text(), bookmarksFile.text(), Icons.sidebarGlyphFor)
     }
 
     // ui/NetworkDialog.qml writes this same file; a watch set up before its parent directory
@@ -129,57 +116,15 @@ Item {
         bookmarksFile.reload()
     }
 
-    // ui/ShareBrowser.qml's own Enter action calls this with the resolved share uri; not yet one of root.entries, so it goes straight to NetworkMounts's own open-a-share path.
-    function mountShare(uri, label) {
-        mounts.openShare(uri, false, label)
-    }
-
-    // Right click raises the menu over the row, which is the whole affordance: an eject that can
-    // only be reached by right-clicking twice is one nobody can see. Which rows offer what lives in
-    // ui/js/Mounts.js "railMenu", because a row with nothing to release must open no menu at all.
-    function openRailMenu(index, scenePosition) {
-        root.cancelRename()
-        var entry = root.entries[index]
-        if (!entry || !root.menu) {
-            return
-        }
-        root.cursorIndex = index
-        root.menu.openForRail(Mounts.railKey(entry), Mounts.railMenu(entry), scenePosition)
-    }
-
-    // The keyboard's own entrance to the same menu, opened under the row the rail cursor is on.
-    // Whether that row has anything to release is ui/js/Focus.js "raiseMenu"'s question, already
-    // answered before this is called; this only turns the cursor into a point to open at.
-    function openCursorMenu() {
-        var row = root.railItemFor(root.cursorIndex)
-        if (!row)
-            return
-        root.openRailMenu(root.cursorIndex, row.mapToItem(null, Style.spacing.rowPaddingX, row.height))
-    }
-
-    // A chosen menu row, arriving with the row's key rather than its position: the rail rebuilds on
-    // a five second poll, so the index the menu opened over can name a different row by now. A key
-    // that no longer names a row does nothing, because the row it named has left the rail already.
-    function releaseChosen(action, key) {
-        if (action === "eject") {
-            var volume = Mounts.rowByKey(root.deviceEntries, key)
-            // Both Services re-check the kind themselves; this only resolves which row was meant.
-            if (volume >= 0) {
-                devices.eject(volume)
-            }
-            return
-        }
-        if (action === "unmount") {
-            var share = Mounts.rowByKey(root.networkEntries, key)
-            if (share >= 0) {
-                mounts.unmount(share)
-            }
-        }
-    }
-
-    Connections {
-        target: root.menu
-        function onRailChosen(action, key) { root.releaseChosen(action, key) }
+    // The rail has no ListView virtualization, so every row already exists; the same itemFor idiom
+    // ui/Pane.qml uses for the list, so a test can find a rail row's on-screen box.
+    function railItemFor(index) {
+        if (index < root.favoriteEntries.length)
+            return favRepeater.itemAt(index)
+        var rest = index - root.favoriteEntries.length
+        if (rest < root.networkEntries.length)
+            return netRepeater.itemAt(rest)
+        return devRepeater.itemAt(rest - root.networkEntries.length)
     }
 
     // A favourite's path is already real and opens directly; a network share or a removable volume
@@ -237,135 +182,173 @@ Item {
         mounts.rename(entry.uri, trimmed)
     }
 
+    // Every cursor move the rail has — keyboard, the wheel chords, the clamp — reveals its row;
+    // a plain wheel pan deliberately does not chase the cursor back, the list's own split of the
+    // two verbs.
+    onCursorIndexChanged: revealCursor()
+
+    function revealCursor() {
+        var row = root.railItemFor(root.cursorIndex)
+        if (!row)
+            return
+        var p = row.mapToItem(scroller.contentItem)
+        if (p.y < scroller.contentY)
+            scroller.contentY = p.y
+        else if (p.y + row.height > scroller.contentY + scroller.height)
+            scroller.contentY = p.y + row.height - scroller.height
+    }
+
     Rectangle {
         anchors.fill: parent
         color: Theme.color.surface
     }
 
-    Column {
-        id: rail
-        anchors.top: parent.top
-        anchors.topMargin: Style.spacing.rowPaddingX
-        anchors.left: parent.left
-        anchors.right: parent.right
+    // The rail's viewport. The list's wheel verb is a pan and the rail's is now the same one, so
+    // this is a Flickable and not the bare Column it was, which could not show a row below its
+    // own height however many favourites and mounts stood in the file.
+    Flickable {
+        id: scroller
+        anchors.fill: parent
+        clip: true
+        contentWidth: width
+        contentHeight: rail.height + 2 * Style.spacing.rowPaddingX
+        boundsBehavior: Flickable.StopAtBounds
 
-        Text {
-            id: favHeading
-            x: Style.spacing.rowPaddingX
-            bottomPadding: Style.spacing.rowGap
-            text: "FAVORITES"
-            color: Theme.color.muted
-            font.family: Theme.font.family
-            font.pixelSize: Theme.font.caption
-            font.letterSpacing: 1
-        }
-
-        Repeater {
-            id: favRepeater
-            model: root.favoriteEntries
-            delegate: SidebarRow {
-                cursor: index === root.cursorIndex
-                focused: root.focused
-                onActivated: function (idx) { root.activate(idx) }
-                onMenuRequested: function (idx, pos) { root.openRailMenu(idx, pos) }
-            }
-        }
-
-        // The OEM panel idiom's own group gap, not the tighter row-to-row rhythm rows keep inside a group.
-        Item {
-            visible: root.networkEntries.length > 0
-            width: rail.width
-            height: Style.spacing.panelGap
-        }
-
-        // Self-hides with its list below when gio, the bookmarks file and Dropbox all have nothing to say.
-        Item {
-            id: netHeadingRow
-            visible: root.networkEntries.length > 0
-            width: rail.width
-            height: netHeading.implicitHeight + Style.spacing.rowGap
+        Column {
+            id: rail
+            anchors.top: parent.top
+            anchors.topMargin: Style.spacing.rowPaddingX
+            anchors.left: parent.left
+            anchors.right: parent.right
 
             Text {
-                id: netHeading
+                id: favHeading
                 x: Style.spacing.rowPaddingX
-                text: "NETWORK"
+                bottomPadding: Style.spacing.rowGap
+                text: "FAVORITES"
                 color: Theme.color.muted
                 font.family: Theme.font.family
                 font.pixelSize: Theme.font.caption
                 font.letterSpacing: 1
             }
 
-            // A hand-drawn plus, not a Text "+": at caption size the font glyph read as a Christian cross, not a plus. Sized off the heading's own font token.
-            Glyph {
-                id: addMark
-                name: "plus"
-                color: Theme.color.muted
-                width: Theme.font.caption
-                height: Theme.font.caption
-                anchors.right: parent.right
-                anchors.rightMargin: Style.spacing.rowPaddingX
-                anchors.verticalCenter: netHeading.verticalCenter
-
-                TapHandler {
-                    onTapped: root.addRequested()
+            Repeater {
+                id: favRepeater
+                model: root.favoriteEntries
+                delegate: SidebarRow {
+                    cursor: index === root.cursorIndex
+                    focused: root.focused
+                    onActivated: function (idx) { root.activate(idx) }
+                    onMenuRequested: function (idx, pos) { root.openRailMenu(idx, pos) }
                 }
             }
-        }
 
-        Repeater {
-            id: netRepeater
-            model: root.networkEntries
-            delegate: SidebarRow {
-                cursor: (index + root.favoriteEntries.length) === root.cursorIndex
-                focused: root.focused
-                renaming: (index + root.favoriteEntries.length) === root.renamingIndex
-                onActivated: function (idx) { root.activate(idx + root.favoriteEntries.length) }
-                onMenuRequested: function (idx, pos) { root.openRailMenu(idx + root.favoriteEntries.length, pos) }
-                onRenameCommitted: function (idx, text) { root.commitRename(idx + root.favoriteEntries.length, text) }
-                onRenameCancelled: root.cancelRename()
+            // The OEM panel idiom's own group gap, not the tighter row-to-row rhythm rows keep inside a group.
+            Item {
+                visible: root.networkEntries.length > 0
+                width: rail.width
+                height: Style.spacing.panelGap
             }
-        }
 
-        Item {
-            visible: root.deviceEntries.length > 0
-            width: rail.width
-            height: Style.spacing.panelGap
-        }
+            // Self-hides with its list below when gio, the bookmarks file and Dropbox all have nothing to say.
+            Item {
+                id: netHeadingRow
+                visible: root.networkEntries.length > 0
+                width: rail.width
+                height: netHeading.implicitHeight + Style.spacing.rowGap
 
-        // Self-hides with its list below on a box lsblk reports no disk for; there is no header
-        // over an empty group. Unlike NETWORK it carries no add mark: nothing here is bookmarked.
-        Text {
-            id: devHeading
-            visible: root.deviceEntries.length > 0
-            x: Style.spacing.rowPaddingX
-            bottomPadding: Style.spacing.rowGap
-            text: "DEVICES"
-            color: Theme.color.muted
-            font.family: Theme.font.family
-            font.pixelSize: Theme.font.caption
-            font.letterSpacing: 1
-        }
+                Text {
+                    id: netHeading
+                    x: Style.spacing.rowPaddingX
+                    text: "NETWORK"
+                    color: Theme.color.muted
+                    font.family: Theme.font.family
+                    font.pixelSize: Theme.font.caption
+                    font.letterSpacing: 1
+                }
 
-        Repeater {
-            id: devRepeater
-            model: root.deviceEntries
-            delegate: SidebarRow {
-                cursor: (index + root.favoriteEntries.length + root.networkEntries.length) === root.cursorIndex
-                focused: root.focused
-                onActivated: function (idx) { root.activate(idx + root.favoriteEntries.length + root.networkEntries.length) }
-                onMenuRequested: function (idx, pos) { root.openRailMenu(idx + root.favoriteEntries.length + root.networkEntries.length, pos) }
+                // A hand-drawn plus, not a Text "+": at caption size the font glyph read as a Christian cross, not a plus. Sized off the heading's own font token.
+                Glyph {
+                    id: addMark
+                    name: "plus"
+                    color: Theme.color.muted
+                    width: Theme.font.caption
+                    height: Theme.font.caption
+                    anchors.right: parent.right
+                    anchors.rightMargin: Style.spacing.rowPaddingX
+                    anchors.verticalCenter: netHeading.verticalCenter
+
+                    TapHandler {
+                        onTapped: root.addRequested()
+                    }
+                }
+            }
+
+            Repeater {
+                id: netRepeater
+                model: root.networkEntries
+                delegate: SidebarRow {
+                    cursor: (index + root.favoriteEntries.length) === root.cursorIndex
+                    focused: root.focused
+                    renaming: (index + root.favoriteEntries.length) === root.renamingIndex
+                    onActivated: function (idx) { root.activate(idx + root.favoriteEntries.length) }
+                    onMenuRequested: function (idx, pos) { root.openRailMenu(idx + root.favoriteEntries.length, pos) }
+                    onRenameCommitted: function (idx, text) { root.commitRename(idx + root.favoriteEntries.length, text) }
+                    onRenameCancelled: root.cancelRename()
+                }
+            }
+
+            Item {
+                visible: root.deviceEntries.length > 0
+                width: rail.width
+                height: Style.spacing.panelGap
+            }
+
+            // Self-hides with its list below on a box lsblk reports no disk for; there is no header
+            // over an empty group. Unlike NETWORK it carries no add mark: nothing here is bookmarked.
+            Text {
+                id: devHeading
+                visible: root.deviceEntries.length > 0
+                x: Style.spacing.rowPaddingX
+                bottomPadding: Style.spacing.rowGap
+                text: "DEVICES"
+                color: Theme.color.muted
+                font.family: Theme.font.family
+                font.pixelSize: Theme.font.caption
+                font.letterSpacing: 1
+            }
+
+            Repeater {
+                id: devRepeater
+                model: root.deviceEntries
+                delegate: SidebarRow {
+                    cursor: (index + root.favoriteEntries.length + root.networkEntries.length) === root.cursorIndex
+                    focused: root.focused
+                    onActivated: function (idx) { root.activate(idx + root.favoriteEntries.length + root.networkEntries.length) }
+                    onMenuRequested: function (idx, pos) { root.openRailMenu(idx + root.favoriteEntries.length + root.networkEntries.length, pos) }
+                }
             }
         }
     }
 
-    // The rail has no ListView virtualization, so every row already exists; the same itemFor idiom ui/Pane.qml uses for the list, so a test can find a rail row's on-screen box.
-    function railItemFor(index) {
-        if (index < root.favoriteEntries.length)
-            return favRepeater.itemAt(index)
-        var rest = index - root.favoriteEntries.length
-        if (rest < root.networkEntries.length)
-            return netRepeater.itemAt(rest)
-        return devRepeater.itemAt(rest - root.networkEntries.length)
+    // The rail's wheel chords, caught over the viewport. The Flickable consumes every wheel its
+    // rows sit under before any WheelHandler could answer one, so the chords route through this
+    // MouseArea, the same map ui/js/Wheel.js keeps that the list reads: a plain wheel is declined
+    // so the Flickable pans, and Shift pans too, because rail rows carry no selection to extend.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
+        onWheel: function (wheel) {
+            if (root.renamingIndex >= 0) { wheel.accepted = false; return }
+            var dir = Wheel.direction(Wheel.axisDelta(wheel), wheel.inverted)
+            var meaning = Wheel.meaning(wheel.modifiers)
+            if (meaning === "viewport" || meaning === "extend") { wheel.accepted = false; return }
+            if (meaning === "end")
+                root.cursorIndex = Wheel.end(dir, root.entries.length)
+            else
+                root.cursorIndex = Wheel.stepped(root.cursorIndex, dir, root.entries.length)
+            wheel.accepted = true
+        }
     }
 
     // The one divider in the whole design.
@@ -376,5 +359,35 @@ Item {
         width: Style.spacing.hairline
         color: Theme.color.foreground
         opacity: 0.12
+    }
+
+    // Right click raises the menu over the row, which is the whole affordance: an eject that can
+    // only be reached by right-clicking twice is one nobody can see. Which rows offer what lives in
+    // ui/js/Mounts.js "railMenu", because a row with nothing to release must open no menu at all.
+    function openRailMenu(index, scenePosition) {
+        root.cancelRename()
+        var entry = root.entries[index]
+        if (!entry || !root.menu) {
+            return
+        }
+        root.cursorIndex = index
+        root.menu.openForRail(Mounts.railKey(entry), Mounts.railMenu(entry), scenePosition)
+    }
+
+    // The keyboard's own entrance to the same menu, opened under the row the rail cursor is on.
+    // Whether that row has anything to release is ui/js/Focus.js "raiseMenu"'s question, already
+    // answered before this is called; this only turns the cursor into a point to open at.
+    function openCursorMenu() {
+        var row = root.railItemFor(root.cursorIndex)
+        if (!row)
+            return
+        root.openRailMenu(root.cursorIndex, row.mapToItem(null, Style.spacing.rowPaddingX, row.height))
+    }
+
+    Connections {
+        target: root.menu
+        // A chosen menu row arrives with the row's key rather than its position, the poll problem
+        // Mounts.release's own comment carries; this only hands the choice to it.
+        function onRailChosen(action, key) { Mounts.release(action, key, devices, mounts, root.deviceEntries, root.networkEntries) }
     }
 }
