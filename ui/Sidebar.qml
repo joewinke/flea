@@ -331,19 +331,23 @@ Item {
         }
     }
 
-    // The rail's modified wheel, routed by the map ui/js/Wheel.js keeps and the list reads too.
-    // The plain wheel is not accepted here, so it falls through to the Flickable above and pans;
-    // Shift is not accepted either, because rail rows carry no selection for an extend to land on.
-    WheelHandler {
-        acceptedModifiers: Qt.AltModifier | Qt.ControlModifier
+    // The rail's wheel chords, caught over the viewport. The Flickable consumes every wheel its
+    // rows sit under before any WheelHandler could answer one, so the chords route through this
+    // MouseArea, the same map ui/js/Wheel.js keeps that the list reads: a plain wheel is declined
+    // so the Flickable pans, and Shift pans too, because rail rows carry no selection to extend.
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.NoButton
         onWheel: function (wheel) {
-            if (root.renamingIndex >= 0)
-                return
+            if (root.renamingIndex >= 0) { wheel.accepted = false; return }
             var dir = wheel.angleDelta.y < 0 ? 1 : -1
-            if (Wheel.meaning(wheel.modifiers) === "end")
+            var meaning = Wheel.meaning(wheel.modifiers)
+            if (meaning === "viewport" || meaning === "extend") { wheel.accepted = false; return }
+            if (meaning === "end")
                 root.cursorIndex = Wheel.end(dir, root.entries.length)
             else
                 root.cursorIndex = Wheel.stepped(root.cursorIndex, dir, root.entries.length)
+            wheel.accepted = true
         }
     }
 
