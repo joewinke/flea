@@ -1,0 +1,568 @@
+# The one key table. tools/flea-keymap-gen turns it into ui/js/Keymap.js, which is generated.
+
+# Control-modified keys are checked first, so plain d can mean cut while ctrl-d pages.
+[[ctrl]]
+key = "D"
+action = "pageDown"
+
+[[ctrl]]
+key = "U"
+action = "pageUp"
+
+[[ctrl]]
+key = "A"
+action = "selectAll"
+
+# Finder's table with Cmd read as Ctrl, which is also what Omarchy's universal clipboard injects
+# (SUPER+C/V/X arrive here as CTRL+C/V/X, see clipboard.lua) and what GTK binds. Every chord is
+# additive: the bare vim key beside it stays. Cmd+D is the one Finder chord not taken, because
+# Ctrl+D above already pages with Ctrl+U as its pair; Duplicate stays a menu row.
+[[ctrl]]
+key = "C"
+action = "copy"
+
+[[ctrl]]
+key = "V"
+action = "paste"
+
+[[ctrl]]
+key = "X"
+action = "cut"
+
+[[ctrl]]
+key = "Z"
+action = "undo"
+
+[[ctrl]]
+key = "F"
+action = "search"
+
+# Finder's Cmd+E. ui/js/Eject.js "release" ejects the rail's cursor row or the removable volume the
+# listing is inside, with the verdict from Mounts.railMenu, off the lsblk poll, never an exit code.
+[[ctrl]]
+key = "E"
+action = "eject"
+
+# Finder's Connect to Server. Unlike bare a, which stays a rail key so the list keeps the letter
+# for type-ahead, the chord costs no letter and opens the dialog from either view.
+[[ctrl]]
+key = "K"
+action = "addNetwork"
+
+[[ctrl]]
+key = "Delete"
+action = "trash"
+
+[[ctrl]]
+key = "Up"
+action = "parent"
+
+[[ctrl]]
+key = "Down"
+action = "open"
+
+# Finder's Cmd+1/2/3; the chrome's three buttons write the same viewMode, so they follow the key.
+[[ctrl]]
+key = "1"
+action = "viewList"
+
+[[ctrl]]
+key = "2"
+action = "viewColumns"
+
+[[ctrl]]
+key = "3"
+action = "viewGrid"
+
+# Checked before the plain ctrl rows and falling through when unmatched, so Ctrl+Shift+D still
+# pages. Ctrl+Shift+N is Nautilus's own New Folder and Finder's with Cmd read as Ctrl, and the
+# window reaches the backend's mkdir through Ops.newFolder. Shift+period is delivered as Greater
+# on a US layout and as Period elsewhere, so both rows name the one action.
+[[ctrlshift]]
+key = "N"
+action = "newFolder"
+
+[[ctrlshift]]
+key = "Greater"
+action = "toggleHidden"
+
+[[ctrlshift]]
+key = "Period"
+action = "toggleHidden"
+
+# Shift falls through instead of returning, because shift-modified letters already carry their
+# own capital text (see G below); this table only covers the arrow keys, which carry no text.
+[[shift]]
+key = "Down"
+action = "extendDown"
+
+[[shift]]
+key = "Up"
+action = "extendUp"
+
+# Bindings on the key code, for the keys that carry no printable character.
+[[code]]
+key = "Down"
+action = "cursorDown"
+
+[[code]]
+key = "Up"
+action = "cursorUp"
+
+[[code]]
+key = "Return"
+action = "open"
+
+[[code]]
+key = "Enter"
+action = "open"
+
+[[code]]
+key = "Backspace"
+action = "parent"
+
+[[code]]
+key = "Delete"
+action = "trash"
+
+[[code]]
+key = "Escape"
+action = "escape"
+
+# The only thing that moves focus between the list and the rail, see ui/js/Focus.js.
+[[code]]
+key = "Tab"
+action = "focusNext"
+
+# Space already owns "open preview" in the browsing state Focus.act handles, and previewAct
+# reuses the same action name to mean "close" once a preview is open, so there is no free
+# context left for a third meaning; toggling selection uses x instead, see it below.
+[[code]]
+key = "Space"
+action = "preview"
+
+# F2 shares the "rename" action "r" carries below; ui/js/Focus.js dispatches it by focus view.
+[[code]]
+key = "F2"
+action = "rename"
+
+# Task 22: seeking, reachable only with a MEDIA preview open. ui/js/Focus.js's lookup discards
+# these the same way it already discards addNetwork outside the rail, so Left/Right stay silent
+# everywhere else rather than surfacing act()'s "not built yet" fallback while browsing.
+[[code]]
+key = "Left"
+action = "seekBack"
+
+[[code]]
+key = "Right"
+action = "seekForward"
+
+# The character is authoritative for letters, so shift-g is distinguishable from g.
+[[text]]
+char = "j"
+action = "cursorDown"
+
+[[text]]
+char = "k"
+action = "cursorUp"
+
+[[text]]
+char = "g"
+action = "cursorFirst"
+
+[[text]]
+char = "G"
+action = "cursorLast"
+
+# GM's ruling, 2026-09-01: the keymap sheet's own letters. Selection moved off x, which now cuts,
+# onto v, which is also the TUI board's visual-mode key.
+[[text]]
+char = "v"
+action = "toggleSelect"
+
+[[text]]
+char = "J"
+action = "extendDown"
+
+[[text]]
+char = "K"
+action = "extendUp"
+
+[[text]]
+char = "h"
+action = "parent"
+
+# Narrows the rows already listed, in place and with no round trip. ui/js/Focus.js keeps it to the
+# list view, the one the canvas draws a filter in, the same way it keeps addNetwork to the rail.
+[[text]]
+char = "/"
+action = "filter"
+
+# Search walks the subtree under the current directory; filter above narrows what is already listed.
+[[text]]
+char = "f"
+action = "search"
+
+# Only means something on a search result, so ui/js/Focus.js drops it everywhere else and o stays type-ahead.
+[[text]]
+char = "o"
+action = "reveal"
+
+[[text]]
+char = ":"
+action = "palette"
+
+[[text]]
+char = "t"
+action = "tabNew"
+
+[[text]]
+char = "w"
+action = "tabClose"
+
+[[text]]
+char = "y"
+action = "copy"
+
+[[text]]
+char = "x"
+action = "cut"
+
+[[text]]
+char = "p"
+action = "paste"
+
+# Delete carries this too; the sheet names d, and the journal is what makes both safe.
+[[text]]
+char = "d"
+action = "trash"
+
+[[text]]
+char = "r"
+action = "rename"
+
+# The canvas draws this on the keymap sheet and again in the status line after a trash ("z undoes"),
+# so it is the one key the shipped table was missing rather than a new invention.
+[[text]]
+char = "z"
+action = "undo"
+
+# The TUI board draws "s cycles, r reverses", but r is rename in both front ends and the canvas's
+# own Operations sheet draws it that way, so the reverse key is S: the capital-is-the-variant shape
+# g/G, j/J and J/K already use. s steps only through the orders the backend can really produce,
+# see ui/js/Sort.js; the columns it cannot are refused on an aimed click instead.
+[[text]]
+char = "s"
+action = "sortNext"
+
+[[text]]
+char = "S"
+action = "sortReverse"
+
+[[text]]
+char = "."
+action = "toggleHidden"
+
+# Opens the Network group's add-location popup; works from either the list or the rail.
+[[text]]
+char = "a"
+action = "addNetwork"
+
+# The keyboard's way into the menu a right click raises: the row's own menu in the listing, Eject
+# and Unmount in the rail. The tagline is "keyboard-first" and before this key neither had one, so
+# m is no longer a type-ahead letter; ui/js/Focus.js routes it by which view has focus.
+[[text]]
+char = "m"
+action = "menu"
+
+# The sheet's own key. Shift falls through to the text switch, so ? needs no [[shift]] row.
+[[text]]
+char = "?"
+action = "keymapSheet"
+
+# The PDF viewer's own three, reachable only with a PDF preview open. ui/js/Focus.js discards them
+# everywhere else, the same way it already discards addNetwork outside the rail. Expand takes e
+# because f is search and Space is preview; the canvas names no key, GM ruled that it gets one.
+[[text]]
+char = "-"
+action = "zoomOut"
+
+[[text]]
+char = "+"
+action = "zoomIn"
+
+[[text]]
+char = "e"
+action = "expand"
+
+# The page pair. h keeps "parent" above, because that is what it means while browsing, and turns a
+# page back only once a PDF preview is open; l means nothing anywhere else, so it stays type-ahead.
+[[text]]
+char = "l"
+action = "pageForward"
+
+# The digit range, expanded by the generator into tab1 through tab9.
+[digits]
+from = 1
+to = 9
+prefix = "tab"
+
+# The keymap sheet ? opens, in the order the canvas's Keys panel draws it, two columns down.
+# A chord shares the row of the key it doubles, written ^c for ctrl and ^N (a capital, the table's
+# own shift convention) for ctrl-shift, so the sheet stays two columns. Two rows keep the bare key
+# alone: "f ^f" beside "find in subtree" and "a ^k" beside "add network place" overrun the 154 px
+# column at base-size 14 in JetBrainsMono (155 and 169 px measured); the README carries those two.
+# keys is what the cap prints, action is what the first of those keys must resolve to, and label is
+# the wording. tests/js/keymap.js checks every action against the table above, so a row here cannot
+# advertise a key that is not bound. Each block writes keys, then action, then label, in that order.
+
+[[sheet]]
+keys = "j k"
+action = "cursorDown"
+label = "move"
+
+[[sheet]]
+keys = "enter"
+action = "open"
+label = "open"
+
+[[sheet]]
+keys = "space"
+action = "preview"
+label = "preview"
+
+# The canvas's Operations board draws / between space and f, and so does this.
+[[sheet]]
+keys = "/"
+action = "filter"
+label = "filter"
+
+[[sheet]]
+keys = "f"
+action = "search"
+label = "find in subtree"
+
+[[sheet]]
+keys = "o"
+action = "reveal"
+label = "reveal result"
+
+[[sheet]]
+keys = "y ^c"
+action = "copy"
+label = "copy"
+
+[[sheet]]
+keys = "x ^x"
+action = "cut"
+label = "cut"
+
+[[sheet]]
+keys = "p ^v"
+action = "paste"
+label = "paste"
+
+[[sheet]]
+keys = "r"
+action = "rename"
+label = "rename"
+
+[[sheet]]
+keys = "d"
+action = "trash"
+label = "trash"
+
+[[sheet]]
+keys = "z ^z"
+action = "undo"
+label = "undo"
+
+[[sheet]]
+keys = "^N"
+action = "newFolder"
+label = "new folder"
+
+[[sheet]]
+keys = "v"
+action = "toggleSelect"
+label = "select"
+
+[[sheet]]
+keys = "s"
+action = "sortNext"
+label = "sort column"
+
+[[sheet]]
+keys = "S"
+action = "sortReverse"
+label = "reverse sort"
+
+[[sheet]]
+keys = ". ^>"
+action = "toggleHidden"
+label = "hidden files"
+
+[[sheet]]
+keys = "a"
+action = "addNetwork"
+label = "add network place"
+
+[[sheet]]
+keys = "m"
+action = "menu"
+label = "context menu"
+
+[[sheet]]
+keys = "^e"
+action = "eject"
+label = "eject"
+
+[[sheet]]
+keys = "?"
+action = "keymapSheet"
+label = "this sheet"
+
+# The pointer contract, the mouse's half of this table. tools/flea-keymap-gen turns it into
+# Keymap.POINTER and tests/js/tap.js drives ui/js/Tap.js against every listing and neighbour row, so
+# a click cannot change meaning without this file saying so and this file cannot advertise a click
+# the code does not make.
+#
+# The effect field is "does" and not "action" on purpose. tools/flea-acceptance derives its whole key
+# checklist from every 'action = ' line in this file, without scoping to a table, so an action= here
+# would put a key on that checklist that nobody can press. Do not rename it back.
+#
+# where  listing    the list view, the grid view, and the columns view's own middle column
+#        neighbour  the columns view's parent and child columns, which are peeks with no cursor
+#        rail       ui/SidebarRow.qml: favourites, mounts and network places
+# press  the button, then any modifier before it, then "x2" for the second tap of a double click
+# row    which rows the line covers: any, dir, file, renaming or result
+# does   setCursor open menu toggleSelect extendSelect reveal nothing
+#
+# Enter opens and is in the [[code]] table above, not here: this is the pointer's half only. The rail
+# opens on one tap, as Finder's own sidebar does and as every other rail in Omarchy does, which is
+# why the listing's two-tap rule stops at the rail's edge.
+
+[[pointer]]
+where = "listing"
+press = "left"
+row = "any"
+does = "selectOnly"
+label = "put the cursor on the row and drop any other selection"
+
+[[pointer]]
+where = "listing"
+press = "left x2"
+row = "any"
+does = "open"
+label = "open the row"
+
+# The operator's ruling on a search result: clicking one takes you to the file rather than launching
+# it, so the second tap reveals into the containing directory with the row selected. ui/js/Search.js
+# activateAction is what decides, and it answers "open" everywhere else, which is why the row above
+# still stands. Enter still opens and o still reveals, so only the pointer reads the search this way.
+[[pointer]]
+where = "listing"
+press = "left x2"
+row = "result"
+does = "reveal"
+label = "go to the file in its own directory, selected"
+
+[[pointer]]
+where = "listing"
+press = "ctrl left"
+row = "any"
+does = "toggleSelect"
+label = "add the row to the selection"
+
+[[pointer]]
+where = "listing"
+press = "shift left"
+row = "any"
+does = "extendSelect"
+label = "extend the selection to the row"
+
+# A modifier never opens, whatever the tap count, and only the first tap of one counts: a ctrl-held
+# double click that toggled twice would put the selection back where it started.
+[[pointer]]
+where = "listing"
+press = "ctrl left x2"
+row = "any"
+does = "toggleSelect"
+label = "still only selects"
+
+[[pointer]]
+where = "listing"
+press = "shift left x2"
+row = "any"
+does = "extendSelect"
+label = "still only selects"
+
+# Finder commits an inline rename when you click away. A TapHandler never moves Qt focus, so
+# ui/RenameField.qml's onActiveFocusChanged cannot carry this and ui/js/Tap.js asks the pane
+# explicitly. The keyboard survives the close because the field gives up focus when it hides, in
+# ui/RenameField.qml, and not because the view takes focus back: forcing focus onto a ListView
+# re-selects the hidden field, which is the focus scope's remembered child.
+[[pointer]]
+where = "listing"
+press = "left"
+row = "renaming"
+does = "commitRename"
+label = "commit the open rename, then select the row"
+
+# The pressed row decides which rows the menu means, ui/js/Drag.js carried()'s rule for the pointer's
+# other gesture. A menu raised inside a multi-row selection acts on all of it, as Finder does, and one
+# raised outside collapses the selection to that row, because every entry the menu draws is built from
+# the cursor row while Move to Trash, Compress and Move to Dropbox all dispatch through the selection.
+[[pointer]]
+where = "listing"
+press = "right"
+row = "any"
+does = "menu"
+label = "open the context menu at the pointer, on the selection the row is in"
+
+# A neighbour column has no cursor, so one tap on a directory makes it the pane's own listing: that is
+# the column view's reveal, the gesture Finder's own column view answers a single click with, and not
+# an open. A file has nothing to reveal, so it waits for the second tap.
+[[pointer]]
+where = "neighbour"
+press = "left"
+row = "dir"
+does = "reveal"
+label = "show that directory in the middle column"
+
+[[pointer]]
+where = "neighbour"
+press = "left"
+row = "file"
+does = "nothing"
+label = "a file has no contents to reveal"
+
+[[pointer]]
+where = "neighbour"
+press = "left x2"
+row = "file"
+does = "open"
+label = "open the file"
+
+# Every menu action addresses the pane's cursor and a peeked row is another directory's, so the two
+# neighbour columns raise no menu at all rather than one whose entries would act somewhere else.
+[[pointer]]
+where = "neighbour"
+press = "right"
+row = "any"
+does = "nothing"
+label = "a peeked row has no menu"
+
+[[pointer]]
+where = "rail"
+press = "left"
+row = "any"
+does = "open"
+label = "open the place"
+
+[[pointer]]
+where = "rail"
+press = "right"
+row = "any"
+does = "menu"
+label = "eject and unmount"

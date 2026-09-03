@@ -1,0 +1,34 @@
+#!/bin/bash
+# Over the hard cap fails; over the soft budget only warns, see AGENTS.md "File budget".
+set -u
+
+soft_rust=250; hard_rust=400
+soft_qml=250;  hard_qml=400
+soft_js=200;   hard_js=300
+
+status=0
+
+budget_for() {
+  case "$1" in
+    *.rs)  echo "$soft_rust $hard_rust" ;;
+    *.qml) echo "$soft_qml $hard_qml" ;;
+    *.js)  echo "$soft_js $hard_js" ;;
+    *)     echo "" ;;
+  esac
+}
+
+while IFS= read -r file; do
+  budgets=$(budget_for "$file")
+  [ -z "$budgets" ] && continue
+  soft=${budgets% *}
+  hard=${budgets#* }
+  lines=$(wc -l < "$file")
+  if [ "$lines" -gt "$hard" ]; then
+    echo "OVER CAP  $file: $lines lines, cap $hard"
+    status=1
+  elif [ "$lines" -gt "$soft" ]; then
+    echo "over soft $file: $lines lines, budget $soft, split it"
+  fi
+done < <(find src ui tests -type f \( -name '*.rs' -o -name '*.qml' -o -name '*.js' \) 2>/dev/null)
+
+exit $status

@@ -1,0 +1,75 @@
+.import "../../ui/js/Places.js" as Places
+
+function run(check) {
+    var dirs = 'XDG_DESKTOP_DIR="$HOME/"\n'
+             + 'XDG_DOWNLOAD_DIR="$HOME/Downloads"\n'
+             + 'XDG_DOCUMENTS_DIR="$HOME/Documents"\n'
+             + '# a comment line\n'
+             + 'XDG_PROJECTS_DIR="/srv/projects"\n'
+    var got = Places.userDirs(dirs, "/home/gm")
+    check("home itself is not a favourite", got.length, 3)
+    check("a relative entry expands", got[0].path, "/home/gm/Downloads")
+    check("the label is the leaf", got[0].label, "Downloads")
+    check("an absolute entry survives", got[2].path, "/srv/projects")
+
+    var marks = 'file:///home/gm/Downloads Downloads\n'
+              + 'file:///home/gm/My%20Files\n'
+              + 'smb://192.168.1.10/ NAS\n'
+    var b = Places.bookmarks(marks)
+    check("a non-file bookmark is skipped", b.length, 2)
+    check("the trailing label wins", b[0].label, "Downloads")
+    check("a percent escape decodes", b[1].path, "/home/gm/My Files")
+    check("no label falls back to the leaf", b[1].label, "My Files")
+
+    // The operator's own real NAS bookmark, on a three-line fixture.
+    var netFile = 'file:///home/gm/Downloads Downloads\n'
+                + 'smb://192.168.1.10/data NAS\n'
+                + 'smb://10.0.0.9/backups Backups\n'
+    check("only the matched line's label changes", Places.relabel(netFile, "smb://192.168.1.10/data", "Homelab"),
+        'file:///home/gm/Downloads Downloads\n'
+        + 'smb://192.168.1.10/data Homelab\n'
+        + 'smb://10.0.0.9/backups Backups\n')
+
+    // gio's own live-mount uri carries a trailing slash the written bookmark line never had.
+    check("a trailing-slash uri still matches the bookmarked line",
+        Places.relabel(netFile, "smb://192.168.1.10/data/", "Homelab"),
+        'file:///home/gm/Downloads Downloads\n'
+        + 'smb://192.168.1.10/data Homelab\n'
+        + 'smb://10.0.0.9/backups Backups\n')
+
+    // No existing line for this uri: a mounted-but-never-bookmarked entry gains one on rename.
+    check("an unmatched uri is appended rather than dropped",
+        Places.relabel(netFile, "smb://192.168.1.10/isos/", "ISOs"),
+        netFile + 'smb://192.168.1.10/isos ISOs\n')
+
+    check("appending onto an empty file needs no leading blank line", Places.relabel("", "smb://host/share", "Share"),
+        "smb://host/share Share\n")
+
+    check("appending onto a body missing its trailing newline still starts a new line",
+        Places.relabel("smb://a/b Existing", "smb://host/share", "Share"),
+        "smb://a/b Existing\nsmb://host/share Share\n")
+
+    check("a blank submitted name is a no-op", Places.relabel(netFile, "smb://192.168.1.10/data", "   "), netFile)
+
+    // A hand-edited file can carry two lines for the same normalized uri; both must rewrite.
+    var dupes = 'smb://192.168.1.10/data NAS\n'
+              + 'file:///home/gm/Downloads Downloads\n'
+              + 'smb://192.168.1.10/data/ Old NAS\n'
+    // Each line's own uri text survives untouched (line 3 keeps its trailing slash); only the label changes.
+    check("every matching line rewrites, not just the first", Places.relabel(dupes, "smb://192.168.1.10/data", "Homelab"),
+        'smb://192.168.1.10/data Homelab\n'
+        + 'file:///home/gm/Downloads Downloads\n'
+        + 'smb://192.168.1.10/data/ Homelab\n')
+
+    // relabel is a trust boundary of its own: an embedded newline must not split one line into two.
+    check("an embedded newline in the name cannot fork a new line", Places.relabel(netFile, "smb://192.168.1.10/data", "Home\nlab"),
+        'file:///home/gm/Downloads Downloads\n'
+        + 'smb://192.168.1.10/data Homelab\n'
+        + 'smb://10.0.0.9/backups Backups\n')
+    // A bookmarks line is arbitrary text, and decodeURIComponent throws on a malformed escape, which
+    // would take the whole rail rebuild with it; a parse failure answers a shape instead.
+    check("a malformed escape in a bookmark falls back to the raw path",
+        Places.bookmarks("file:///home/gm/bad%zz Bad")[0].path, "/home/gm/bad%zz")
+    check("a well-formed escape still decodes",
+        Places.bookmarks("file:///home/gm/My%20Files Mine")[0].path, "/home/gm/My Files")
+}

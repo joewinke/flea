@@ -1,0 +1,190 @@
+//@ pragma AppId com.thisisgm.flea
+//@ pragma ShellId flea
+//@ pragma NativeTextRendering
+//@ pragma DefaultEnv QSG_RHI_BACKEND=vulkan
+//@ pragma CacheDir $BASE/flea
+
+import Quickshell
+import QtQuick
+import qs.Commons
+import "."
+import "." as Flea
+import "js/Ops.js" as Ops
+import "js/Search.js" as Search
+
+ShellRoot {
+    FloatingWindow {
+        id: fleaWindow
+        title: "Flea"
+        implicitWidth: 900
+        implicitHeight: 600
+        // Quickshell 0.3.1 has no exit API and Qt.quit() is a no-op, so the shell signals itself.
+        // The backend is told first and answers when it has drained: a quit cancels the operation in
+        // flight, and a cancelled copy removes its own partial, so closing never leaves a half file.
+        Connections { target: Quickshell; function onLastWindowClosed() { backend.quit() } }
+        Connections { target: backend; function onQuitReady() { Quickshell.execDetached(["kill", String(Quickshell.processId)]) } }
+
+        // Every *Centre reader on the IPC seam is this: an item's painted box, reduced to the point a test clicks.
+        function centreOf(item) {
+            if (!item)
+                return ""
+            var rect = fleaWindow.itemRect(item)
+            return Math.round(rect.x + rect.width / 2) + " " + Math.round(rect.y + rect.height / 2)
+        }
+
+        Rectangle {
+            id: view
+            anchors.fill: parent
+            color: Theme.color.background
+
+            Backend {
+                id: backend
+
+                // The warm product path ends when rows first reach the UI, and only this side can see that; see AGENTS.md "Testing".
+                property real firstRowsAt: 0
+                onRows: function (start, items, ms) {
+                    if (backend.firstRowsAt === 0 && items.length > 0)
+                        backend.firstRowsAt = Date.now()
+                }
+            }
+
+            // The canvas's own top chrome: where you are on the left, how you are looking at it on
+            // the right. The path lives here, which is why the status bar below carries counts instead.
+            Flea.ChromeBar {
+                id: chrome
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                path: pane.path
+                home: pane.home
+                canGoBack: pane.canGoBack
+                canGoUp: pane.canGoUp
+                viewMode: pane.viewMode
+                onBackRequested: pane.goBack()
+                onUpRequested: pane.openParent()
+                onSearchRequested: pane.act("search")
+                onViewChosen: function (mode) { pane.viewMode = mode }
+            }
+
+            Flea.Pane {
+                id: pane
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: chrome.bottom
+                anchors.bottom: bar.top
+                backend: backend
+                preview: preview
+                shareBrowser: shareBrowser
+                keymapSheet: keymapSheet
+                onMessage: function (text, isError) { bar.say(text, isError) }
+                // A running operation's line, which stands until the operation replaces it; see ui/StatusBar.qml.
+                onSticky: function (text) { bar.sticky = text; bar.transfer = pane.transfer }
+                onConvertRequested: function (name) { convertDialog.open(name, pane) }
+                onOpened: function (path) { shareBrowser.close() }
+            }
+
+            Flea.StatusBar {
+                id: bar
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                path: pane.path
+                total: pane.total
+                cursorIndex: pane.cursorIndex
+                listingState: pane.listingState
+                selectionCount: pane.selectionCount()
+                fsName: pane.fsName
+                fsFree: pane.fsFree
+                searchRunning: pane.searchRunning
+                searchLine: pane.searchMode === "results"
+                            ? Search.statusLine(pane.searchRunning, pane.total, pane.searchScanned, pane.searchMs)
+                            : ""
+                searchKeys: Search.statusKeys(pane.searchRunning)
+                onTransferCancelRequested: function (id) { backend.transfercancel(id) }
+            }
+
+            Flea.Preview { id: preview; pane: pane }
+
+            Flea.ConvertDialog {
+                id: convertDialog
+                anchors.fill: parent
+                onAccepted: function (format, strip) { Ops.convert(pane, format, strip) }
+            }
+
+            // The keymap sheet ? opens, over the whole window as the convert popup is.
+            Flea.KeymapSheet {
+                id: keymapSheet
+                anchors.fill: parent
+            }
+
+            Flea.NetworkDialog {
+                id: networkDialog
+                // FocusScope remembers its own last-focused child, list or rail, and restores it.
+                onClosed: pane.forceActiveFocus()
+                onSaved: pane.sidebar.reloadBookmarks()
+            }
+
+            Connections {
+                target: pane.sidebar
+                function onAddRequested() { networkDialog.open() }
+                function onSharesListed(baseUri, baseLabel, names) { shareBrowser.open(baseUri, baseLabel, names) }
+            }
+
+            // The Omarchy mark's one placement: over the list area alone, so the rail stays live.
+            // In the columns view that area is all three columns, so the mark takes the middle one:
+            // an empty current directory is that column's answer, not the parent column's.
+            // listArea is measured inside pane, which starts below the chrome bar, so pane's own y is added; pane.x is zero.
+            Flea.EmptyState {
+                id: emptyState
+                x: pane.listArea.x + (pane.viewMode === "columns" ? pane.columnsArea.columnWidth : 0)
+                y: pane.y + pane.listArea.y
+                width: pane.viewMode === "columns" ? pane.columnsArea.columnWidth : pane.listArea.width
+                height: pane.listArea.height
+                visible: pane.listingState === "empty"
+                // The design's no-match answer: the search mark over the query it could not find.
+                caption: pane.searchMode === "results" ? "Nothing matches " + pane.searchQuery : ""
+                mark: "search"
+            }
+
+            // The loading crawl, same listArea placement; its own hold-off keeps fast listings clean.
+            Flea.LoadingState {
+                x: pane.listArea.x
+                y: pane.y + pane.listArea.y
+                width: pane.listArea.width
+                height: pane.listArea.height
+                visible: pane.listingState === "loading"
+            }
+
+            // A bare Network entry's own shares, same listArea placement as EmptyState above.
+            Flea.ShareBrowser {
+                id: shareBrowser
+                x: pane.listArea.x
+                y: pane.y + pane.listArea.y
+                width: pane.listArea.width
+                height: pane.listArea.height
+                onClosed: pane.forceActiveFocus()
+                onActivated: function (uri, label) { pane.sidebar.mountShare(uri, label) }
+            }
+
+            Component.onCompleted: {
+                var start = Quickshell.env("FLEA_PATH") || Quickshell.env("HOME")
+                // Read once: Pane.applyPendingSelect() forgets it after the first rows response.
+                pane.pendingSelect = Quickshell.env("FLEA_SELECT") || ""
+                pane.open(start)
+            }
+        }
+    }
+
+    // The seam the tests drive, see AGENTS.md "Testing". Every reader lives in ui/Ipc.qml.
+    Flea.Ipc {
+        fleaWindow: fleaWindow
+        pane: pane
+        bar: bar
+        backend: backend
+        chrome: chrome
+        convertDialog: convertDialog
+        keymapSheet: keymapSheet
+        networkDialog: networkDialog
+        shareBrowser: shareBrowser
+    }
+}
