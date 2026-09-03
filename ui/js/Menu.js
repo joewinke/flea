@@ -22,7 +22,7 @@ function clamp(point, size, bounds) {
 // and carry its own suite, tests/js/menu.js. The Open row names the application xdg-open would
 // choose (p.openSuffix, resolved by ui/Opener.qml; empty for a directory, which flea opens itself),
 // and Copy Path sits beside it because both answer "where is this and what runs on it".
-function listingEntries(p) {
+function listingEntries(p, confirming) {
     var out = []
     if (p.hasRow) {
         out.push({ label: "Open", action: "open", glyph: "folder-open", suffix: p.openSuffix })
@@ -59,7 +59,14 @@ function listingEntries(p) {
         }
         out.push({ separator: true })
         // No confirm anywhere behind this row: the undo journal is the safety, see the operations design.
-        out.push({ label: "Move to Trash", action: "trash", glyph: "trash", danger: true })
+        // A confirming menu swaps the danger row for the keep/trash pair in place — Keep first and
+        // first under the cursor, Trash the only way through — so nothing collapses or jumps.
+        if (confirming) {
+            out.push({ label: "Keep", action: "keepTrash", glyph: "check" })
+            out.push({ label: "Move to Trash", action: "confirmTrash", glyph: "trash", danger: true })
+        } else {
+            out.push({ label: "Move to Trash", action: "trash", glyph: "trash", danger: true })
+        }
         out.push({ separator: true })
     }
     // The last group is the rows that need no row under the cursor, which is also the whole menu
@@ -82,16 +89,6 @@ function advancedRows(showHidden) {
         action: "toggleHidden",
         glyph: showHidden ? "eye-off" : "eye"
     }]
-}
-
-// The keep/trash pair the danger row pauses on: Keep first and first-highlighted, Trash beneath
-// in its own danger red, and nothing commits until one of the two is chosen. Esc or Keep puts the
-// listing back untouched; Trash is the only way through.
-function confirmEntries() {
-    return [
-        { label: "Keep", action: "keepTrash", glyph: "check" },
-        { label: "Move to Trash", action: "confirmTrash", glyph: "trash", danger: true }
-    ]
 }
 
 // ui/Header.qml's own rows, on a right click over the column titles. Name is not among them: it is

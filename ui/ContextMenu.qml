@@ -85,9 +85,7 @@ Item {
             return root.heldEntries
         if (root.forHeader)
             return Menu.headerEntries(ViewState.hiddenCols, root.showHidden, ViewState.foldersFirst)
-        if (root.confirming)
-            return Menu.confirmEntries()
-        return Menu.listingEntries(root)
+        return Menu.listingEntries(root, root.confirming)
     }
 
     // A separator is never the cursor, so both key steps and the opening cursor skip over one.
@@ -187,12 +185,11 @@ Item {
     // The menu closes before the action runs, so it never hangs over the listing that action opened.
     function choose(action) {
         // Move to Trash pauses for an in-menu keep/trash pair, Keep first, before it commits: the
-        // morph is deliberate, so the same tap that opens the menu cannot also empty it. Keep puts
-        // the listing back untouched; Trash is the only way through.
+        // pair grows inside the untouched menu, so nothing collapses or jumps. Keep puts the listing
+        // back; Trash is the only way through.
         if (action === "trash" && !root.confirming) {
             root.confirming = true
-            root.heldEntries = Menu.confirmEntries()
-            root.cursor = 0
+            root.heldEntries = root.buildEntries()
             return
         }
         // Both read before close(), which is what clears them.
@@ -260,7 +257,6 @@ Item {
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
-        hoverEnabled: true
         onWheel: function (wheel) { wheel.accepted = true }
         z: 1
     }
@@ -316,7 +312,6 @@ Item {
         MouseArea {
             anchors.fill: parent
             acceptedButtons: Qt.NoButton
-            hoverEnabled: true
             onWheel: function (wheel) { wheel.accepted = true }
         }
         x: frame.x + frame.width
@@ -361,5 +356,6 @@ Item {
         id: keyCatcher
         anchors.fill: parent
         focus: true
+        menu: root
     }
 }
