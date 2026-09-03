@@ -85,7 +85,4 @@ QtObject {
         onLoadFailed: root.save()
     }
 
-    function save() {
-        store.setText(JSON.stringify({ hiddenCols: root.hiddenCols, foldersFirst: root.foldersFirst }, null, 2) + "\n")
-    }
 }
