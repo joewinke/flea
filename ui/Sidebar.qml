@@ -347,6 +347,8 @@ Item {
                 root.cursorIndex = Wheel.end(dir, root.entries.length)
             else
                 root.cursorIndex = Wheel.stepped(root.cursorIndex, dir, root.entries.length)
+            // The chord probe: what the event actually carried, over the bar, while the Alt bug is hunted.
+            root.message("end x=" + wheel.angleDelta.x + " y=" + wheel.angleDelta.y + " inv=" + wheel.inverted, false)
             wheel.accepted = true
         }
     }
