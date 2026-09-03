@@ -98,6 +98,7 @@ if [ "$FIXTURE" = close ]; then
       case $first_fmt in
         n/a) say "- $id: a TUI previews the cursor file and fills no grid, so it writes no thumbnails at all"; continue ;;
         -) say "- $id: this run did not drop the thumbnail cache, so nothing here was measured"; continue ;;
+        unmeasurable) say "- $id: nothing reached the thumbnail cache, so this run makes no format claim about it either way; tools/flea-bench-capability is the instrument that answers what it can draw"; continue ;;
       esac
       : > "$tmp_fail"
       for f in "$KEYS_DIR/$id"-run*.fail.keys; do

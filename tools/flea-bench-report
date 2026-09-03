@@ -34,6 +34,8 @@ die() { echo "flea-bench-report: $*" >&2; exit 1; }
 # thumbs_by_dir,cpu_tree_s,thumbs_by_format,ranked,preview_ms
 # flea,1,754,1227,105779,0.75,5323,0,76112,81964,148216,-,0.90,-,yes,-
 header=$(head -1 "$CSV")
+# Field count of the header, so a row carrying a comma inside a value can be named as such.
+header_n=$(printf '%s' "$header" | tr ',' '\n' | grep -c .)
 
 col_of() {
   local want=$1 i=0 f
@@ -87,15 +89,20 @@ for id in "${ids[@]}"; do
   esac
   n=$(grep "^$id," "$CSV" | cut -d, -f"$ranked_col" | sort -u | grep -c .)
   [ "$n" -eq 1 ] || die "$id carries $n different 'ranked' verdicts across its runs"
+  # Every column here is cut on a comma, so one inside a verdict shifts every column to its right
+  # and the failure surfaces against whichever column the shifted row lands in.
+  cols=$(grep -m1 "^$id," "$CSV" | tr ',' '\n' | grep -c .)
+  [ "$cols" -le "$header_n" ] || die "$id's row has $cols fields against the header's $header_n, so a field holds a comma: $(ranked_of "$id")"
 done
 
-# Every value in a counted column is a whole number or one of the harness's did-not-happen markers,
-# and every CPU value carries exactly two decimals.
+# Every value in a counted column is a whole number or one of the harness's did-not-happen markers.
+# "unmeasurable" is one of those markers: the run looked and the instrument could not see this
+# entrant's work, which is not a count of zero. Every CPU value carries exactly two decimals.
 for col in "$mapped_col" "$settled_col" "$pss_col" "$child_col" "$thumbs_col" "$preview_col"; do
   name=$(printf '%s' "$header" | cut -d, -f"$col")
   while IFS= read -r v; do
     case "$v" in
-      -|n/a|-1|"") continue ;;
+      -|n/a|-1|""|unmeasurable) continue ;;
       *[!0-9]*) die "the $name column holds '$v', which is not a whole number" ;;
     esac
   done < <(tail -n +2 "$CSV" | cut -d, -f"$col")
@@ -132,6 +139,8 @@ work_measured() {
   row=$(grep -m1 "^$1," "$CSV")
   n=$(printf '%s' "$row" | cut -d, -f"$thumbs_col")
   f=$(printf '%s' "$row" | cut -d, -f"$fmt_col")
+  # "unmeasurable" is the run having looked and the cache having shown it nothing, which is a
+  # measurement this bracket took; only "-", "n/a" and an empty cell mean it never looked at all.
   case "$n" in -|n/a|"") return 1 ;; esac
   [ "$f" != "-" ]
 }
@@ -238,7 +247,7 @@ values() {
   local v
   while IFS= read -r v; do
     case "$v" in
-      -|-1|n/a|"") continue ;;
+      -|-1|n/a|""|unmeasurable) continue ;;
     esac
     printf '%s\n' "$v"
   done < <(grep "^$1," "$CSV" | cut -d, -f"$2")
@@ -316,7 +325,7 @@ bracket_table() {
     # A count nobody took is not a count of zero, which is the whole reason this column exists.
     work_cell="$thumbs thumbnails"
     case "$(grep -m1 "^$id," "$CSV" | cut -d, -f"$thumbs_col")" in
-      -|n/a|"") work_cell="not measured" ;;
+      -|n/a|""|unmeasurable) work_cell="not measured" ;;
     esac
     [ -n "$refusal" ] && work_cell="not measured"
     settled_cell="never settled"
@@ -352,7 +361,7 @@ bracket_table() {
       echo "The times below are measurements and not places, and they stay below the rule until a run"
       echo "with \`DROP_THUMBS=yes\` gives this column a count."
     else
-      echo "**Not ranked.** An entrant that drew no thumbnails did not do the same work, and one that"
+      echo "**Not ranked.** An entrant whose work was not measured cannot be compared on time, and one that"
       echo "never settled has no time."
     fi
     echo
@@ -524,8 +533,11 @@ if [ "$thumbable_n" != "0" ]; then
   for id in "${ids[@]}"; do
     [ "$(kind_of "$id")" = gui ] || continue
     read -r t tn < <(values "$id" "$thumbs_col" | median_n)
-    work_measured "$id" || t="not measured"
     byfmt=$(grep -m1 "^$id," "$CSV" | cut -d, -f"$fmt_col")
+    # values() drops the sentinel, so a median of nothing comes back as 0. That 0 is the absence of
+    # a measurement and printing it here is the exact claim this column must never make.
+    work_measured "$id" || t="not measured"
+    [ "$byfmt" = unmeasurable ] && t="not measured"
     echo "| \`$id\` | $t | \`$byfmt\` |"
   done
 fi

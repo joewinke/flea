@@ -886,10 +886,19 @@ waits for its consumer.
   keys, `jpg=3;png=2;unknown=0`, which is what says the derivation matches a real thumbnailer and
   not merely itself.
 - **`ranked` is the last column and it is the one a report must read first.** `yes` is a
-  comparable row. `unranked: no thumbnails on a media run` is a GUI entrant that finished a media
-  run having produced nothing, which is a failed measurement and not a fast one; the harness names
-  it on stderr the way it names an absent entrant and keeps going, because one unmeasurable entrant
-  is not a reason to lose the other thirteen. `n/a: tui in <terminal>` is the whole TUI bracket: a
+  comparable row. `unranked: nothing reached the thumbnail cache so its work was not
+  measured` is a GUI entrant that finished a media run having left that cache empty, and its
+  `thumbs_n` and `thumbs_by_format` then read `unmeasurable` rather than 0. **That is a failed
+  measurement and never a capability claim**, because a cache count cannot tell an entrant that
+  drew nothing from one that persists nothing: strata renders each thumbnail into a scratch
+  directory it deletes on drop and keeps the image in memory, and its 0 here was published as
+  "strata thumbnails nothing" in three artefacts for a whole release while it drew six of the
+  eight formats offered. The raw cache reading survives in `thumbs_by_dir`, which is a true
+  statement about the cache and a false one about the entrant. `tools/flea-bench-capability` is
+  the instrument that answers ability, and it measures an entrant named in its `TRANSIENT_ID` by
+  live watch instead of by cache count. The harness names the refusal on stderr the way it names
+  an absent entrant and keeps going, because one unmeasurable entrant is not a reason to lose the
+  other thirteen. `n/a: tui in <terminal>` is the whole TUI bracket: a
   TUI previews the cursor file and never fills a grid, and the terminal decides whether it can draw
   an image at all, so those rows carry `n/a` in `thumbs_n` rather than a 0 that reads as slow.
 - **Two rules for the report, which the harness cannot enforce.** The thumbnail count prints beside

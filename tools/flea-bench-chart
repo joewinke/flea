@@ -343,9 +343,9 @@ def build(csv, out_gh, out_social):
 
     base = dict(rows=rows, unranked=unranked, timehdr=timehdr, workhdr=workhdr,
                 axis=max(num(r["settled"]) for r in rows),
-                unrankednote=["Not ranked. An entrant that drew no thumbnails did not do the same "
-                              "work, and one that never settled has no time.",
-                              "Not ranked: drew no thumbnails, or never settled."])
+                unrankednote=["Not ranked. Work nobody measured cannot be compared on time, and "
+                              "an entrant that never settled has no time.",
+                              "Not ranked: work not measured, or never settled."])
     open(out_gh, "w", encoding="utf-8").write(chart(dict(
         base, width=860, pad=24, lab=74, workw=96, valch=9, dashw=120,
         eyebrow=eyebrow, prov=prov, cards=cards, footer=footer)))

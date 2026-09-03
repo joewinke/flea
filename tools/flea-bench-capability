@@ -22,9 +22,18 @@ MEDIA=${MEDIA:-$FIXTURE_ROOT/flea-media-btrfs}
 FLEA_UI="$FLEA_REPO/ui"
 FLEA_BIN="$FLEA_REPO/target/release/flea"
 STRATA_BIN=${STRATA_BIN:-$HOME/Work/strata/target/release/strata}
+# The one entrant in this field that persists no thumbnail. strata renders each one in a sandboxed
+# helper that writes result.png into /tmp/strata-preview-<pid>-<n> and deletes the directory on drop
+# (src/sandbox.rs:382 names it, :53 the file, :397 removes it), so it fills the screen and leaves
+# this tool's cache empty. A live watch sees that work; a cache count is structurally blind to it.
+TRANSIENT_ID=${TRANSIENT_ID:-strata}
+TRANSIENT_PREFIX=${TRANSIENT_PREFIX:-/tmp/strata-preview-}
 # Generous on purpose. A capability answer must not be a timing answer in disguise, so an entrant
 # gets far longer than it could possibly need for eight files.
 CAP_TIMEOUT_S=${CAP_TIMEOUT_S:-45}
+# One entrant, for re-measuring a single row. The box is shared: a full pass kills every file
+# manager by name, and the operator's own Flea is not this tool's to close.
+CAP_ONLY=${CAP_ONLY:-}
 OUT=${1:-$HOME/bench/capability.md}
 
 SB="$FIXTURE_ROOT/flea-capability-$$"
@@ -74,6 +83,12 @@ restore_thumbs() {
 
 kill_entrants() {
   local c
+  # Scoped to the entrant under test when there is only one, so a run that was asked for strata
+  # cannot close the operator's Flea or a window another lane is driving.
+  if [ -n "$CAP_ONLY" ]; then
+    pkill -x "$CAP_ONLY" >/dev/null 2>&1
+    return 0
+  fi
   for c in qs flea nautilus thunar pcmanfm nemo dolphin strata tumblerd; do
     pkill -x "$c" >/dev/null 2>&1
   done
@@ -92,7 +107,11 @@ cap_cleanup() {
 sandbox_make "$SB"
 trap 'cap_cleanup' EXIT INT TERM
 kill_entrants
-park_thumbs
+# A transient entrant is measured by live watch and never writes this cache, so a run for it alone
+# has no reason to move the operator's real one out from under whatever else is on screen.
+if [ "$CAP_ONLY" != "$TRANSIENT_ID" ]; then
+  park_thumbs
+fi
 
 FIXTURE="$SB/files"
 mkdir -p "$FIXTURE" || fail "could not make $FIXTURE"
@@ -126,6 +145,47 @@ cap_fail_keys() {
     | sed 's/\.png$//' | LC_ALL=C sort -u > "$out"
 }
 
+# One directory per format holding exactly one file, so a render can only be that format's, and one
+# short run each. Counting a single mixed directory would say how many renders happened and never
+# which format earned them, because the scratch directory is named by a counter and not by the file.
+cap_transient() {
+  local id=$1 cmd=$2 ext dir n can="" cannot="" raw="" watch_pid log pids
+  log="$SB/$id.transient"
+  for ext in $formats; do
+    dir="$SB/fmt-$ext"
+    mkdir -p "$dir" || fail "could not make $dir"
+    cp "$FIXTURE/sample.$ext" "$dir/sample.$ext" || fail "could not copy the $ext sample"
+
+    : > "$log"
+    inotifywait -m -q -r -e close_write --format '%w%f' /tmp > "$log" 2>/dev/null &
+    watch_pid=$!
+    sleep 2
+    # The entrant's own launch line, pointed at this format's directory rather than the mixed one.
+    eval "${cmd//$FIXTURE/$dir}" >/dev/null 2>&1 &
+    sleep "$CAP_TIMEOUT_S"
+
+    n=$(grep -c "^$TRANSIENT_PREFIX[0-9]*-[0-9]*/result\.png\$" "$log")
+    # Two entrant processes in one window would let one format's renders be counted for another.
+    pids=$(grep -o "^$TRANSIENT_PREFIX[0-9]*" "$log" | LC_ALL=C sort -u | wc -l)
+    [ "$pids" -le 1 ] || fail "$pids $id processes wrote renders during the $ext window, so no count from it is attributable"
+    kill "$watch_pid" 2>/dev/null
+    kill_entrants
+    sleep 2
+
+    raw="${raw:+$raw;}$ext=$n"
+    if [ "$n" -gt 0 ]; then can="${can:+$can, }$ext"; else cannot="${cannot:+$cannot, }$ext"; fi
+  done
+  {
+    printf -- '- **%s** thumbnails %s\n' "$id" "${can:-nothing}"
+    printf -- '  - cannot produce: %s\n' "${cannot:-nothing, it did all of them}"
+    printf -- '  - raw: rendered `%s`; counted live, one format at a time, %ss each\n' "$raw" "$CAP_TIMEOUT_S"
+    printf -- '  - **measured by live watch, not by cache count.** This entrant writes each thumbnail\n'
+    printf -- '    to a scratch directory it deletes immediately, so it persists nothing a cache count\n'
+    printf -- '    can see and a cache count reports it as capable of nothing.\n'
+  } >> "$OUT"
+  printf '%-10s can %s | cannot %s (live watch)\n' "$id" "${can:-nothing}" "${cannot:-nothing}"
+}
+
 mkdir -p "$(dirname "$OUT")"
 {
   echo "# What each GUI entrant can actually thumbnail"
@@ -154,10 +214,16 @@ for cap_row in "${CAP_ROWS[@]}"; do
   IFS='|' read -r id kind class comm token helper_comm helper_token cmd <<< "$cap_row"
   id=${id//[[:space:]]/}
   [ "$kind" = gui ] || continue
+  [ -z "$CAP_ONLY" ] || [ "$id" = "$CAP_ONLY" ] || continue
   if [ "$id" = strata ]; then
     [ -x "$STRATA_BIN" ] || { printf 'SKIP: strata is not built at %s\n' "$STRATA_BIN" >&2; continue; }
   else
     command -v "$comm" >/dev/null 2>&1 || { printf 'SKIP: %s is not installed\n' "$id" >&2; continue; }
+  fi
+
+  if [ "$id" = "$TRANSIENT_ID" ]; then
+    cap_transient "$id" "$cmd"
+    continue
   fi
 
   # Cold for every entrant, and the parked cache means none of this is the operator's.
@@ -197,6 +263,21 @@ for cap_row in "${CAP_ROWS[@]}"; do
       cannot="${cannot:+$cannot, }$ext"
     fi
   done
+  # An entrant that left neither a thumbnail nor a refusal marker never touched this cache at all,
+  # and "thumbnails nothing" is then a claim about the instrument rather than about the entrant.
+  # strata drew all six formats it supports while reporting exactly this, for a whole release.
+  if [ ! -s "$produced" ] && [ ! -s "$SB/$id.fail.keys" ]; then
+    {
+      printf -- '- **%s** left this cache untouched, so it is **not measured** here\n' "$id"
+      printf -- '  - neither a thumbnail nor a refusal marker was written in %ss, which is what an\n' "$CAP_TIMEOUT_S"
+      printf -- '    entrant that keeps its thumbnails in memory looks like to a cache count.\n'
+      printf -- '    Add it to TRANSIENT_ID to measure it by live watch instead.\n'
+    } >> "$OUT"
+    printf '%-10s NOT MEASURED, it left the cache untouched\n' "$id"
+    kill_entrants
+    sleep 2
+    continue
+  fi
   {
     printf -- '- **%s** thumbnails %s\n' "$id" "${can:-nothing}"
     printf -- '  - cannot produce: %s\n' "${cannot:-nothing, it did all eight}"

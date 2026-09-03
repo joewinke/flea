@@ -208,13 +208,28 @@ failure marker the thumbnailer left. Never attempted is neither, which on this f
 means the entrant settled before reaching those names: they sort by format, clip before image
 before notes before photo. **A never-attempted count is not a capability claim.**
 
+**Correction, 2026-09-03: strata's line here read "produced nothing" and that was an instrument
+failure, not a result.** strata persists no thumbnail. It renders each one in a sandboxed helper
+that writes `result.png` into `/tmp/strata-preview-<pid>-<n>`, reads it into a 256-entry, 64 MiB
+in-memory cache, and deletes the directory on drop, so it draws thumbnails on screen and leaves
+`~/.cache/thumbnails` untouched. Every instrument in this harness counted that cache, so both this
+manifest and `capability.md` reported strata as capable of nothing for the whole v0.1.0 release
+while it drew six of the eight formats offered. Confirmed three ways on 2026-09-03: a screenshot of
+strata on this fixture showing rendered video frames in place of the type glyph it starts with, a
+live `inotifywait` over `$HOME/.cache`, `$HOME/.local/share`, the fixture, `/tmp` and
+`/run/user/1000` across a 50-second run that recorded 205 renders and **zero net new paths**, and
+strata's own source at `src/ui/thumbnail.rs`. `thumbs_n` and `thumbs_by_format` for strata now read
+`unmeasurable`; the raw cache reading survives in `thumbs_by_dir` as `fail=0;large=0`, which is a
+true statement about the cache and a false one about the entrant. **No other entrant's numbers were
+re-run or changed**, and strata's own timing columns are the ones this batch measured.
+
 - flea produced mkv 6, mp4 24, webm 6; refused nothing; never attempted heic 200, jpg 600, mkv 94, mp4 376, png 200, txt 200, webm 94, webp 200
 - nautilus produced heic 13, mp4 400, png 14, webm 100, webp 14; refused nothing; never attempted heic 187, jpg 600, mkv 100, png 186, txt 200, webp 186
 - thunar produced mkv 37, mp4 148, webm 36; refused nothing; never attempted heic 200, jpg 600, mkv 63, mp4 252, png 200, txt 200, webm 64, webp 200
 - pcmanfm produced mp4 400, png 105, webm 100; refused nothing; never attempted heic 200, jpg 600, mkv 100, png 95, txt 200, webp 200
 - nemo produced jpg 45, webp 15; refused nothing; never attempted heic 200, jpg 555, mkv 100, mp4 400, png 200, txt 200, webm 100, webp 185
 - dolphin produced jpg 50, mkv 84, mp4 335, webm 83; refused nothing; never attempted heic 200, jpg 550, mkv 16, mp4 65, png 200, txt 200, webm 17, webp 200
-- strata produced nothing; refused nothing; never attempted heic 200, jpg 600, mkv 100, mp4 400, png 200, txt 200, webm 100, webp 200
+- strata: nothing reached the thumbnail cache, so this run makes no format claim about it either way; tools/flea-bench-capability is the instrument that answers what it can draw
 - yazi: a TUI previews the cursor file and fills no grid, so it writes no thumbnails at all
 - mc: a TUI previews the cursor file and fills no grid, so it writes no thumbnails at all
 - broot: a TUI previews the cursor file and fills no grid, so it writes no thumbnails at all
@@ -244,7 +259,7 @@ safe direction, and it is not a reason to leave the number out.
 
 ## Rank refusals
 
-- strata run 1: unranked: no thumbnails on a media run
+- strata run 1: unranked: nothing reached the thumbnail cache so its work was not measured
 - yazi run 1: n/a: tui in kitty
 - mc run 1: n/a: tui in kitty
 - broot run 1: n/a: tui in kitty
@@ -253,7 +268,7 @@ safe direction, and it is not a reason to leave the number out.
 - ranger run 1: n/a: tui in kitty
 - xplr run 1: n/a: tui in kitty
 - superfile run 1: n/a: tui in kitty
-- strata run 2: unranked: no thumbnails on a media run
+- strata run 2: unranked: nothing reached the thumbnail cache so its work was not measured
 - yazi run 2: n/a: tui in kitty
 - mc run 2: n/a: tui in kitty
 - broot run 2: n/a: tui in kitty
@@ -262,7 +277,7 @@ safe direction, and it is not a reason to leave the number out.
 - ranger run 2: n/a: tui in kitty
 - xplr run 2: n/a: tui in kitty
 - superfile run 2: n/a: tui in kitty
-- strata run 3: unranked: no thumbnails on a media run
+- strata run 3: unranked: nothing reached the thumbnail cache so its work was not measured
 - yazi run 3: n/a: tui in kitty
 - mc run 3: n/a: tui in kitty
 - broot run 3: n/a: tui in kitty

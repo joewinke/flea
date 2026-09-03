@@ -554,10 +554,13 @@ run_one() {
       thumbs_fmt=n/a
       ranked="n/a: tui in $TUI_TERM"
     elif [ "$thumbs_n" = 0 ]; then
-      # A failed measurement, not a fast one. Named the way an absent entrant is named, and the run
-      # continues: one entrant that cannot be measured is not a reason to lose the other thirteen.
-      ranked="unranked: no thumbnails on a media run"
-      printf 'UNRANKED: %s finished a media run having produced no thumbnails, so its time is not a result\n' "$id" >&2
+      # A failed measurement, not a fast one, and this instrument cannot tell which failure it is.
+      # strata renders every thumbnail into a scratch dir it deletes on drop, so it fills the screen
+      # and leaves the cache empty: a 0 here is the cache's silence, never the entrant's ability.
+      thumbs_n=unmeasurable
+      thumbs_fmt=unmeasurable
+      ranked="unranked: nothing reached the thumbnail cache so its work was not measured"
+      printf 'UNRANKED: %s left nothing in the thumbnail cache, so its work was not measured and its time is not a result\n' "$id" >&2
     fi
   fi
 

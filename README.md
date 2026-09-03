@@ -150,13 +150,13 @@ because Flea is the entrant that has one, which understates any rival whose work
 | `dolphin` | 672 ms | 14,514 ms | 552 thumbnails | 101.5 MiB | 68.11 s | 3 |
 | `nautilus` | 819 ms | 17,006 ms | 541 thumbnails | 172.6 MiB | 12.81 s | 3 |
 
-**Not ranked.** An entrant that drew no thumbnails did not do the same work, and one that never
-settled has no time.
+**Not ranked.** An entrant whose work was not measured cannot be compared on time, and one that
+never settled has no time.
 
 | entrant | settled listing | work done | why it is not ranked |
 |---|---|---|---|
 | `pcmanfm` | never settled | 605 thumbnails | never settled in any of the 3 runs |
-| `strata` | 30,780 ms | 0 thumbnails | no thumbnails on a media run |
+| `strata` | 30,780 ms | not measured | nothing reached the thumbnail cache so its work was not measured |
 
 **Flea settles first on this fixture while drawing the fewest thumbnails of any ranked entrant: 36
 against `dolphin`'s 552, a fifteenth of the work, so that first place is not a bare first place and
@@ -204,10 +204,15 @@ landed by md5 key against the fixture's own map.
 | `pcmanfm` | - | yes | - | - | yes | yes | - | - |
 | `nemo` | yes | - | yes | - | - | - | - | - |
 | `dolphin` | yes | yes | yes | - | yes | yes | yes | - |
-| `strata` | - | - | - | - | - | - | - | - |
+| `strata` | yes | yes | yes | - | yes | yes | yes | - |
 
 txt is the control: no thumbnailer draws a text file, so an entrant claiming one there would be a
 broken measurement rather than a capable entrant.
+
+`strata`'s row is the one measured by a live watch rather than by a thumbnail-cache count, because
+it is the one entrant that persists no thumbnail: it renders each one into a scratch directory it
+deletes immediately and keeps the image in memory. A cache count sees none of that, which is why
+its work column above reads **not measured** and not a zero.
 
 The field run's own per-format counts answer the other question, how far each entrant got before it
 stopped, and they must not be read as the table above. Flea's zero in `jpg` here is the viewport it
@@ -221,7 +226,7 @@ drew, not a format it cannot produce.
 | `pcmanfm` | 605 | `heic=0;jpg=0;mkv=0;mp4=400;png=105;txt=0;webm=100;webp=0;unknown=0` |
 | `nemo` | 60 | `heic=0;jpg=45;mkv=0;mp4=0;png=0;txt=0;webm=0;webp=15;unknown=0` |
 | `dolphin` | 552 | `heic=0;jpg=50;mkv=84;mp4=335;png=0;txt=0;webm=83;webp=0;unknown=0` |
-| `strata` | 0 | `none=0` |
+| `strata` | not measured | `unmeasurable` |
 
 ### The TUI bracket
 

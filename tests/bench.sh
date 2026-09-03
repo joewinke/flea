@@ -161,7 +161,7 @@ cp "$map" "$keys_dir/fixture.map"
   emit_row
   CELL=([id]=dolphin [run]=1 [thumbs_n]=790 [thumbs_by_format]="jpg=2;png=1;txt=0;none=0;unknown=0" [ranked]=yes [preview_ms]=-)
   emit_row
-  CELL=([id]=strata [run]=1 [thumbs_n]=0 [thumbs_by_format]="none=0" [ranked]="unranked: no thumbnails on a media run" [preview_ms]=-)
+  CELL=([id]=strata [run]=1 [thumbs_n]=unmeasurable [thumbs_by_format]=unmeasurable [ranked]="unranked: nothing reached the thumbnail cache so its work was not measured" [preview_ms]=-)
   emit_row
   CELL=([id]=yazi [run]=1 [thumbs_n]=n/a [thumbs_by_format]=n/a [ranked]="n/a: tui in kitty" [preview_ms]=745)
   emit_row
@@ -174,14 +174,18 @@ want_cols=$(printf '%s\n' "$bench_header" | tr ',' '\n' | wc -l)
 got_cols=$(sed -n '2p' "$csv" | tr ',' '\n' | wc -l)
 check "the synthetic run is as wide as the bench's own header" "$want_cols" "$got_cols"
 
-# One refused key for strata, so the three-state line has something in every state to report.
-grep ' jpg$' "$map" | head -1 | cut -d' ' -f1 > "$keys_dir/strata-run1.fail.keys"
+# One refused key for dolphin, so the three-state line has something in every state to report.
+# It sits on an entrant that also produced thumbnails, because that is the only shape a refusal
+# marker occurs in: an entrant the cache never saw at all leaves no marker either.
+grep ' jpg$' "$map" | head -1 | cut -d' ' -f1 > "$keys_dir/dolphin-run1.fail.keys"
 
 "$tool" "$man" close "$csv" >/dev/null 2>&1
 check "the manifest closes against a finished run" 0 $?
 holds "an entrant's produced formats are named" "flea produced jpg 2" "$man"
-holds "a format nobody reached is never-attempted, not absent" "never attempted jpg 1" "$man"
-holds "a refusal marker is its own state" "strata produced nothing; refused jpg 1" "$man"
+holds "a format nobody reached is never-attempted, not absent" "flea .*never attempted .*png 1" "$man"
+holds "a refusal marker is its own state" "dolphin produced .*; refused jpg 1" "$man"
+holds "an entrant the cache never saw makes no format claim" "strata: nothing reached the thumbnail cache" "$man"
+lacks "and is never recorded as having produced nothing" "strata produced nothing" "$man"
 holds "a TUI is not given a format line it cannot earn" "yazi: a TUI previews the cursor file" "$man"
 holds "every unranked row is repeated as a refusal" "strata run 1: unranked" "$man"
 holds "including the TUI bracket's" "yazi run 1: n/a: tui in kitty" "$man"
@@ -195,6 +199,27 @@ check "closing against a missing run is refused" 1 $?
 "$tool" "$man" close "$csv" >/dev/null 2>&1
 check "closing an already-closed manifest is refused" 1 $?
 check "and it still carries exactly one close section" 1 "$(grep -c '^## Run close' "$man")"
+
+# ---------------------------------------------------------------- tools/flea-bench-report
+# The report renders the work column that carried the wrong claim. A cache count that saw nothing
+# must reach the page as "not measured": a 0 there was published as a capability claim about strata
+# for the whole v0.1.0 release while it drew six of the eight formats offered.
+report_out="$scratch/report.md"
+"$repo/tools/flea-bench-report" "$repo/docs/bench/media-rc-2044.csv" > "$report_out" 2>"$scratch/report.err"
+check "the report runs against a closed manifest" 0 $?
+lacks "a sentinel never reaches the page as a number" "unmeasurable thumbnails" "$report_out"
+lacks "and an unseen entrant is never called a zero" "| 0 thumbnails |" "$report_out"
+holds "it reads not measured instead" "strata.*not measured" "$report_out"
+holds "and the refusal names the instrument, not the entrant" "nothing reached the thumbnail cache" "$report_out"
+lacks "the old claim about the entrant's ability is gone" "drew no thumbnails" "$report_out"
+# A verdict holding a comma shifts every column right of it, and the failure then surfaces against
+# whichever column the shifted row lands in rather than against the verdict that caused it.
+comma_csv="$scratch/comma.csv"
+sed 's/cache so its work was not measured/cache, so its work was not measured/' "$repo/docs/bench/media-rc-2044.csv" > "$comma_csv"
+cp "$repo/docs/bench/media-rc-2044.manifest.md" "${comma_csv%.csv}.manifest.md"
+"$repo/tools/flea-bench-report" "$comma_csv" >/dev/null 2>"$scratch/comma.err"
+check "a comma inside a verdict is refused" 1 $?
+holds "and the refusal names the field that holds it" "so a field holds a comma" "$scratch/comma.err"
 
 # The launch line the harness derives from its own table, and the terminal it names once. A renamed
 # or reordered field makes the first empty, and an empty launch line in the manifest is the exact
