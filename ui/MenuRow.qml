@@ -50,10 +50,11 @@ Item {
         visible: !root.isSeparator
         // selectedAccentFill already carries the theme's own selected alpha, so the tint is a
         // colour here and an opacity for the plain lift, never both at once.
-        // The hover fill is the listing row's own Style.hoverFill rung, so a menu row hovers as
-        // visibly as a listing row does; the old 8 percent foreground tint read as no hover at all.
+        // The hover fill is the cursor's own selectedFill rung, not the 8 percent hover tint a
+        // listing row takes: on the menu's surface that tint is invisible, and a menu row that is
+        // hovered is as chosen as one the keyboard moved to.
         color: root.picked ? Style.selectedAccentFill
-             : root.current ? Style.hoverFill
+             : root.current ? Style.selectedFill
              : "transparent"
         opacity: 1
     }
