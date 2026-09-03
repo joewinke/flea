@@ -41,15 +41,28 @@ removal provable. `flea --default` is the one thing pacman does not own, because
 preference and not a file of the package's: run `flea --default off` first, or see
 [`docs/install.md`](docs/install.md) for the two lines it would otherwise leave behind.
 
-Once there is a tagged release an AUR package would make the whole install `paru -S flea`. Its
-`source=` and checksums can only be written against a tag, so it is not there yet.
-
 Four optional packages each unlock one feature and nothing else: `libarchive` for archive listing
 and extraction, `7zip` for `.7z` archives, `imagemagick` for image conversion, and `tailscale` for
 Taildrop sharing.
 
 [`docs/install.md`](docs/install.md) has the rest: what lands on disk, what `flea --default` writes
 and how to undo it by hand, and how the package proves itself.
+
+## Update
+
+```bash
+cd flea && git pull && makepkg -si
+```
+
+The same clone and the same command as the install. `makepkg` runs the test suite before it hands
+the package to pacman, pacman upgrades in place rather than installing alongside, and your
+`flea --default` choice survives it because that is a preference and not a file of the package's.
+
+There is no automatic update yet, so that command is the whole story: nothing tells you when a new
+version exists. An AUR package would fold Flea into `omarchy update`, which already upgrades AUR
+packages on every run, and would make the install `omarchy pkg aur add flea`. AUR account
+registration is closed at the moment while they deal with a wave of automated signups, so it goes
+up when registration reopens.
 
 ## Measured against the field
 
