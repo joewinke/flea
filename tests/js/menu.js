@@ -97,13 +97,17 @@ function runMenu(check) {
 
     // ui/Header.qml's own rows, on a right click over the column titles. Four toggles, flipping
     // labels, each answering "col:<key>"; Name is absent because it never hides.
-    var head = Menu.headerEntries([], false)
-    check("the header menu offers the four optional columns, flipping labels when hidden",
-          labels(Menu.headerEntries(["size"], false)),
-          "Hide Mode|Show Size|Hide Date Modified|Hide Kind|-|Advanced")
+    var head = Menu.headerEntries([], false, true)
+    check("the header menu offers the four optional columns, flipping labels when hidden, then the two state rows flat",
+          labels(Menu.headerEntries(["size"], false, false)),
+          "Hide Mode|Show Size|Hide Date Modified|Hide Kind|-|Show hidden files|Keep folders first")
     check("every column row answers col:<key>",
           findEntry(head, "col:size").action + "|" + findEntry(head, "col:kind").action,
           "col:size|col:kind")
-    check("the header menu's Advanced carries the hidden toggle",
-          findEntry(head, "advanced").submenu[0].action, "toggleHidden")
+    check("the header menu is flat: the hidden toggle is a top-level row, no Advanced",
+          findEntry(head, "toggleHidden").label + "|" + findEntry(head, "advanced").label,
+          "Show hidden files|undefined")
+    check("the header menu carries the folders-first flip, both ways",
+          findEntry(head, "foldersFirst").label + "|" + Menu.headerEntries([], false, false)[6].label,
+          "Mix folders and files|Keep folders first")
 }

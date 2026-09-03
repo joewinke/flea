@@ -16,6 +16,16 @@ QtObject {
     // it is the one column a file manager cannot do without, see ui/js/Columns.js.
     property var hiddenCols: []
 
+    // The backend's standing "dirs" answer (true is the shipped default): every list and sort this
+    // session sends carries it, and the header menu's flip re-lists, which is toggleHidden's own
+    // gesture for a state that changes what the listing shows.
+    property bool foldersFirst: true
+
+    function toggleFoldersFirst() {
+        root.foldersFirst = !root.foldersFirst
+        save()
+    }
+
     // Flipped by ui/Pane.qml's onChosen, when a header-menu row answers "col:<key>".
     function toggleColumn(key) {
         var next = []
@@ -30,7 +40,7 @@ QtObject {
         if (!had)
             next.push(key)
         root.hiddenCols = next
-        store.setText(JSON.stringify({ hiddenCols: root.hiddenCols }, null, 2) + "\n")
+        store.setText(JSON.stringify({ hiddenCols: root.hiddenCols, foldersFirst: root.foldersFirst }, null, 2) + "\n")
     }
 
     function load() {
@@ -38,6 +48,8 @@ QtObject {
             var parsed = JSON.parse(store.text())
             if (parsed && parsed.hiddenCols)
                 root.hiddenCols = parsed.hiddenCols
+            if (parsed && parsed.foldersFirst !== undefined)
+                root.foldersFirst = parsed.foldersFirst
         } catch (e) {
             // A file another hand wrote is not this file's problem: the defaults stand.
         }
@@ -54,6 +66,6 @@ QtObject {
     }
 
     function save() {
-        store.setText(JSON.stringify({ hiddenCols: root.hiddenCols }, null, 2) + "\n")
+        store.setText(JSON.stringify({ hiddenCols: root.hiddenCols, foldersFirst: root.foldersFirst }, null, 2) + "\n")
     }
 }

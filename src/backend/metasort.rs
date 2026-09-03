@@ -10,7 +10,7 @@ use std::time::Instant;
 // The stats live for this call alone: nothing is cached, so reversing a size order stats the
 // directory again at the warm cost docs/protocol.md "sort" records, and a listing sitting in name
 // order, which is every listing the field measures, never carries 16 bytes a row it is not using.
-pub fn sort_by_stat(l: &mut Listing, base: &Path, by: SortBy, desc: bool) -> (f64, f64) {
+pub fn sort_by_stat(l: &mut Listing, base: &Path, by: SortBy, desc: bool, dirs_first: bool) -> (f64, f64) {
     let (stats, pass_ms) = stat_all(base, l);
     let t = Instant::now();
     // An index is sorted and the spans gathered after it, so Span stays the 12 bytes every listing pays.
@@ -18,8 +18,8 @@ pub fn sort_by_stat(l: &mut Listing, base: &Path, by: SortBy, desc: bool) -> (f6
     order.sort_by(|&a, &b| {
         let (a, b) = (a as usize, b as usize);
         match (l.is_dir(a), l.is_dir(b)) {
-            (true, false) => Ordering::Less,
-            (false, true) => Ordering::Greater,
+            (true, false) if dirs_first => Ordering::Less,
+            (false, true) if dirs_first => Ordering::Greater,
             // desc is the exact reverse of asc inside each group, tie-break included, as name's is.
             _ if desc => key_order(l, &stats, by, b, a),
             _ => key_order(l, &stats, by, a, b),
@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn size_lists_directories_first_by_name_then_files_by_size() {
         let (d, mut l) = tree("sizeasc");
-        sort_by_stat(&mut l, d.path(), SortBy::Size, false);
+        sort_by_stat(&mut l, d.path(), SortBy::Size, false, true);
         // 11 has st_size 0 and 1 does not, so a build ordering directories by st_size answers 11 1.
         assert_eq!(names(&l), "1 11 3 2");
     }
@@ -94,16 +94,16 @@ mod tests {
     #[test]
     fn size_descending_keeps_directories_first_and_reverses_inside_each_group() {
         let (d, mut l) = tree("sizedesc");
-        sort_by_stat(&mut l, d.path(), SortBy::Size, true);
+        sort_by_stat(&mut l, d.path(), SortBy::Size, true, true);
         assert_eq!(names(&l), "11 1 2 3");
     }
 
     #[test]
     fn mtime_orders_both_groups_by_time_directories_still_first_in_both_directions() {
         let (d, mut l) = tree("mtime");
-        sort_by_stat(&mut l, d.path(), SortBy::Mtime, false);
+        sort_by_stat(&mut l, d.path(), SortBy::Mtime, false, true);
         assert_eq!(names(&l), "11 1 2 3", "a build that lost the grouping answers 2 11 1 3");
-        sort_by_stat(&mut l, d.path(), SortBy::Mtime, true);
+        sort_by_stat(&mut l, d.path(), SortBy::Mtime, true, true);
         assert_eq!(names(&l), "1 11 3 2");
     }
 
@@ -122,8 +122,8 @@ mod tests {
         for n in set.iter().rev() {
             again.push(n, false);
         }
-        sort_by_stat(&mut once, d.path(), SortBy::Size, false);
-        sort_by_stat(&mut again, d.path(), SortBy::Size, false);
+        sort_by_stat(&mut once, d.path(), SortBy::Size, false, true);
+        sort_by_stat(&mut again, d.path(), SortBy::Size, false, true);
         assert_eq!(names(&once), "a B b file_2 file_10", "the tie-break is the name order, digits by value");
         assert_eq!(names(&once), names(&again), "whatever readdir said");
     }
@@ -136,10 +136,10 @@ mod tests {
         l.push("real", false);
         // Named to sort after real by name, so this can only pass on size.
         l.push("zzz-gone", false);
-        sort_by_stat(&mut l, d.path(), SortBy::Size, false);
+        sort_by_stat(&mut l, d.path(), SortBy::Size, false, true);
         assert_eq!(names(&l), "zzz-gone real", "the zeroes stat_range would send sort as the smallest");
         let mut empty = Listing::new();
-        let (pass, sort) = sort_by_stat(&mut empty, d.path(), SortBy::Mtime, true);
+        let (pass, sort) = sort_by_stat(&mut empty, d.path(), SortBy::Mtime, true, true);
         assert_eq!(empty.len(), 0);
         assert!(pass >= 0.0 && sort >= 0.0);
     }
@@ -148,7 +148,7 @@ mod tests {
     fn the_gather_moves_spans_and_leaves_every_name_and_flag_intact() {
         let (d, mut l) = tree("gather");
         let mut before: Vec<(String, bool)> = (0..l.len()).map(|i| (l.name(i).to_string(), l.is_dir(i))).collect();
-        sort_by_stat(&mut l, d.path(), SortBy::Mtime, true);
+        sort_by_stat(&mut l, d.path(), SortBy::Mtime, true, true);
         let mut after: Vec<(String, bool)> = (0..l.len()).map(|i| (l.name(i).to_string(), l.is_dir(i))).collect();
         before.sort();
         after.sort();

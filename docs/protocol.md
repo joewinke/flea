@@ -51,7 +51,12 @@ default to `0`.
 
 ### sort
 
-`{"c":"sort","by":"<string>","desc":<bool>}`
+`{"c":"sort","by":"<string>","desc":<bool>,"dirs":<bool>}`
+
+`dirs` is optional and sticky: absent, the session keeps its standing choice (true, folders
+grouped ahead of files, the shipped default); present, it sets that choice for this sort and
+every listing and sort after it, `list` included. `false` interleaves folders into the order
+the key and direction produce.
 
 Example: `{"c":"sort","by":"size","desc":true}`
 

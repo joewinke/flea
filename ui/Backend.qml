@@ -82,7 +82,7 @@ Item {
         // header's mark back rather than leaving it describing the order before the refresh.
         root.sortBy = "name"
         root.sortDesc = false
-        root.send({ c: "list", path: path, first: first, hidden: hidden })
+        root.send({ c: "list", path: path, first: first, hidden: hidden, dirs: ViewState.foldersFirst })
     }
 
     function window(start, count) {
@@ -90,7 +90,7 @@ Item {
     }
 
     function sort(by, desc) {
-        root.send({ c: "sort", by: by, desc: desc })
+        root.send({ c: "sort", by: by, desc: desc, dirs: ViewState.foldersFirst })
     }
 
     // The walk replaces the current listing with its matches, each named relative to path; see docs/protocol.md "search".

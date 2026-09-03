@@ -1,10 +1,10 @@
 use crate::error::FleaError;
-use crate::json::{escape, field_bool, field_str, field_str_array, field_usize, field_usize_array};
+use crate::json::{escape, field_bool, field_bool_opt, field_str, field_str_array, field_usize, field_usize_array};
 
 pub enum Request {
     List { path: String, first: usize, hidden: bool },
     Window { start: usize, count: usize },
-    Sort { by: String, desc: bool },
+    Sort { by: String, desc: bool, dirs: Option<bool> },
     Search { path: String, query: String, hidden: bool },
     // Unlike thumbcancel there is no rows form: one walk runs at a time, so a cancel can only mean that one.
     SearchCancel,
@@ -56,6 +56,7 @@ pub fn parse_request(line: &str) -> Request {
         Some("sort") => Request::Sort {
             by: field_str(line, "by").unwrap_or_default(),
             desc: field_bool(line, "desc"),
+            dirs: field_bool_opt(line, "dirs"),
         },
         Some("search") => Request::Search {
             path: field_str(line, "path").unwrap_or_default(),
@@ -214,7 +215,7 @@ mod tests {
             _ => panic!("expected Window"),
         }
         match parse_request(r#"{"c":"sort","by":"size","desc":true}"#) {
-            Request::Sort { by, desc } => {
+            Request::Sort { by, desc, .. } => {
                 assert_eq!(by, "size");
                 assert!(desc);
             }

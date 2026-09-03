@@ -25,10 +25,10 @@ pub fn parse_sort_by(s: &str) -> Result<SortBy, &'static str> {
 
 // The one entry the loop calls: name works on phase-1 data alone, size and date pay the metadata
 // pass first. Answers (pass ms, sort ms), which the listed line carries as read and sort.
-pub fn sort_listing(l: &mut Listing, base: &Path, by: SortBy, desc: bool) -> (f64, f64) {
+pub fn sort_listing(l: &mut Listing, base: &Path, by: SortBy, desc: bool, dirs_first: bool) -> (f64, f64) {
     match by {
-        SortBy::Name => (0.0, sort_by_name(l, desc)),
-        SortBy::Size | SortBy::Mtime => sort_by_stat(l, base, by, desc),
+        SortBy::Name => (0.0, sort_by_name(l, desc, dirs_first)),
+        SortBy::Size | SortBy::Mtime => sort_by_stat(l, base, by, desc, dirs_first),
     }
 }
 
@@ -101,7 +101,7 @@ pub fn name_order(a: &[u8], b: &[u8]) -> Ordering {
     }
 }
 
-pub fn sort_by_name(l: &mut Listing, desc: bool) -> f64 {
+pub fn sort_by_name(l: &mut Listing, desc: bool, dirs_first: bool) -> f64 {
     let t = Instant::now();
     // Take the buffer out so the comparator can borrow it while spans are moved.
     let names = std::mem::take(&mut l.names);
@@ -109,8 +109,8 @@ pub fn sort_by_name(l: &mut Listing, desc: bool) -> f64 {
         let an = &names[a.off as usize..(a.off + a.len) as usize];
         let bn = &names[b.off as usize..(b.off + b.len) as usize];
         match (a.is_dir, b.is_dir) {
-            (true, false) => Ordering::Less,
-            (false, true) => Ordering::Greater,
+            (true, false) if dirs_first => Ordering::Less,
+            (false, true) if dirs_first => Ordering::Greater,
             _ => {
                 // desc is the exact reverse of asc, tie-break included. as_bytes is a cast, not a
                 // conversion: the arena is a String, so the spans slice to &str and the comparator
@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn directories_come_first_then_name_order() {
         let mut l = sample();
-        sort_by_name(&mut l, false);
+        sort_by_name(&mut l, false, true);
         assert_eq!(l.name(0), "aaa-dir");
         assert_eq!(l.name(1), "zzz-dir");
         assert_eq!(l.name(2), "alpha.txt");
@@ -152,9 +152,19 @@ mod tests {
     }
 
     #[test]
+    fn dirs_first_false_mixes_folders_into_name_order() {
+        let mut l = sample();
+        sort_by_name(&mut l, false, false);
+        assert_eq!(l.name(0), "aaa-dir");
+        assert_eq!(l.name(1), "alpha.txt");
+        assert_eq!(l.name(2), "zebra.txt");
+        assert_eq!(l.name(3), "zzz-dir");
+    }
+
+    #[test]
     fn descending_reverses_names_but_keeps_directories_first() {
         let mut l = sample();
-        sort_by_name(&mut l, true);
+        sort_by_name(&mut l, true, true);
         assert_eq!(l.name(0), "zzz-dir");
         assert_eq!(l.name(1), "aaa-dir");
         assert_eq!(l.name(2), "zebra.txt");
@@ -164,7 +174,7 @@ mod tests {
     #[test]
     fn sorting_an_empty_listing_does_not_panic() {
         let mut l = Listing::new();
-        sort_by_name(&mut l, false);
+        sort_by_name(&mut l, false, true);
         assert_eq!(l.len(), 0);
     }
 
@@ -185,7 +195,7 @@ mod tests {
     fn sort_listing_routes_name_to_the_phase_one_order_and_never_stats() {
         let mut l = sample();
         // A base that does not exist: name order never looks at it, so nothing here can fail.
-        let (pass, _) = sort_listing(&mut l, Path::new("/definitely/not/here"), SortBy::Name, true);
+        let (pass, _) = sort_listing(&mut l, Path::new("/definitely/not/here"), SortBy::Name, true, true);
         assert_eq!(pass, 0.0, "name pays no metadata pass");
         assert_eq!(l.name(0), "zzz-dir");
         assert_eq!(l.name(3), "alpha.txt");
@@ -198,7 +208,7 @@ mod tests {
         for n in names {
             l.push(n, false);
         }
-        sort_by_name(&mut l, false);
+        sort_by_name(&mut l, false, true);
         (0..l.len()).map(|i| l.name(i).to_string()).collect()
     }
 
@@ -275,8 +285,8 @@ mod tests {
             asc.push(n, false);
             desc.push(n, false);
         }
-        sort_by_name(&mut asc, false);
-        sort_by_name(&mut desc, true);
+        sort_by_name(&mut asc, false, true);
+        sort_by_name(&mut desc, true, true);
         let up: Vec<String> = (0..asc.len()).map(|i| asc.name(i).to_string()).collect();
         let mut down: Vec<String> = (0..desc.len()).map(|i| desc.name(i).to_string()).collect();
         down.reverse();

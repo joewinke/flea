@@ -87,7 +87,9 @@ function advancedRows(showHidden) {
 // ui/Header.qml's own rows, on a right click over the column titles. Name is not among them: it is
 // the one column a file manager cannot do without (see ui/js/Columns.js), so it is never hidden and
 // never offered. A hidden column reads "Show", a drawn one "Hide", the flip the state rows use.
-function headerEntries(hiddenCols, showHidden) {
+// Below the columns, the two state rows flat: the folders-first choice (the backend's standing
+// "dirs", flipped here and answered by the re-list ui/Pane.qml asks for) and the hidden files.
+function headerEntries(hiddenCols, showHidden, foldersFirst) {
     var out = []
     var hidden = {}
     for (var h = 0; h < hiddenCols.length; h++)
@@ -105,8 +107,14 @@ function headerEntries(hiddenCols, showHidden) {
     }
     out.push({ separator: true })
     out.push({
-        label: "Advanced", action: "advanced", glyph: "sliders",
-        submenu: advancedRows(showHidden)
+        label: showHidden ? "Hide hidden files" : "Show hidden files",
+        action: "toggleHidden",
+        glyph: showHidden ? "eye-off" : "eye"
+    })
+    out.push({
+        label: foldersFirst ? "Mix folders and files" : "Keep folders first",
+        action: "foldersFirst",
+        glyph: "list"
     })
     return out
 }

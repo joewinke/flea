@@ -27,6 +27,9 @@ pub struct Tables {
 
 // Everything the loop mutates, gathered so a handler takes one borrow instead of ten arguments.
 pub struct State {
+    // The standing folders-first choice for every listing and sort this session answers; the
+    // sort request's optional "dirs" overrides it per call. true is the shipped default.
+    pub dirs_first: bool,
     pub listing: Listing,
     pub base: PathBuf,
     // Only the rows a client named, so this never grows with the directory; see AGENTS.md "Thumbnail requests".

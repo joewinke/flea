@@ -87,7 +87,7 @@ Item {
         if (root.forRail)
             return root.railEntries
         if (root.forHeader)
-            return Menu.headerEntries(ViewState.hiddenCols, root.showHidden)
+            return Menu.headerEntries(ViewState.hiddenCols, root.showHidden, ViewState.foldersFirst)
         return Menu.listingEntries({
             showHidden: root.showHidden,
             hasRow: root.hasRow,

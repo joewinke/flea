@@ -125,6 +125,7 @@ pub fn run() -> i32 {
         dirsize_queue: Vec::new(),
         search: None,
         search_reported: Instant::now(),
+        dirs_first: true,
     };
 
     let (tx, rx) = channel::<Event>();
@@ -204,7 +205,7 @@ fn handle_line(
             }
             match scan(&path, hidden) {
                 Ok((mut l, read_ms)) => {
-                    let sort_ms = sort_by_name(&mut l, false);
+                    let sort_ms = sort_by_name(&mut l, false, st.dirs_first);
                     // base and listing only move together, so a failed list cannot mix them.
                     st.base = PathBuf::from(&path);
                     st.listing = l;
@@ -243,7 +244,7 @@ fn handle_line(
                 forget_rows(st, pool);
             }
         }
-        Request::Sort { by, desc } => {
+        Request::Sort { by, desc, dirs } => {
             // The walk owns the listing sort would reorder, so it ends first rather than racing it.
             if finish_search(out, st, true) {
                 forget_rows(st, pool);
@@ -256,7 +257,10 @@ fn handle_line(
                 }
                 Ok(order) => {
                     // read carries the metadata pass here, 0.0 for name; see docs/protocol.md "listed".
-                    let (pass_ms, sort_ms) = sort_listing(&mut st.listing, &st.base, order, desc);
+                    // An absent "dirs" keeps the session's standing choice; a present one sets it.
+                    let dirs_first = dirs.unwrap_or(st.dirs_first);
+                    st.dirs_first = dirs_first;
+                    let (pass_ms, sort_ms) = sort_listing(&mut st.listing, &st.base, order, desc, dirs_first);
                     forget_rows(st, pool);
                     writeln!(out, "{}", listed_line(st.listing.len(), pass_ms, sort_ms, dev_of(&st.base))).ok();
                 }

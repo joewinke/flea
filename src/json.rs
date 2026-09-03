@@ -148,6 +148,12 @@ pub fn field_bool(line: &str, key: &str) -> bool {
     }
 }
 
+// Absent and present-but-false are different answers: the sort request's "dirs" defaults to the
+// session's standing choice when the field is missing and overrides it when it is there.
+pub fn field_bool_opt(line: &str, key: &str) -> Option<bool> {
+    value_start(line, key).map(|start| line[start..].trim_start().starts_with("true"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

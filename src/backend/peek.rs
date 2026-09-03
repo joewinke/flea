@@ -20,7 +20,7 @@ pub fn peek_line(path: &str, first: usize, hidden: bool, mime: &Db, icons: &Name
         // empty directory either, and the column drew those two the same way until this line.
         Err(_) => return failed_peek(path),
     };
-    sort_by_name(&mut listing, false);
+    sort_by_name(&mut listing, false, true);
     let total = listing.len();
     let count = first.min(PEEK_CAP).min(total);
     let mut out = String::with_capacity(count * 64);
