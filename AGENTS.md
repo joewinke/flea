@@ -57,6 +57,18 @@ this tree yet: `flea --tui` says so and exits 2.
    `focus:` is toggled explicitly beside `visible:`. A hidden view that can steal a
    keystroke is a hidden view that is fully alive.
 
+7. **The media bracket got a real rival on 2026-09-03, and two columns felt it.** Measuring
+   `strata`'s work properly moved it from unranked into the table, and Flea's placements moved
+   with it: memory went from fifth of six to **sixth of seven** at 112.6 MiB against strata's
+   **70.3 MiB**, and the CPU lead, which read 3.61x over `nemo`, is now **1.28x over strata**,
+   1.42 s against 1.82 s. Both columns Flea wins are still won, settled listing first of six and
+   CPU first of seven, and the 100,000 file bracket did not move at all. The operator ruled this
+   acceptable with an optimization pass to follow, so it is a deferred ticket and not a defect.
+   Item 6 above is the first place to look: its `Loader` gating was MEASURED to recover 14.7 MB at
+   100k and is not in the tree, and memory is the column that actually lost a place. Read its
+   caveat first, because that figure is a list-view number rather than a whole-product one, and
+   the split it needs broke `tests/ui.sh` twice.
+
 ## Two-phase listing
 
 Phase 1 (`scan.rs`) reads only names and `file_type()`, which is backed by `d_type` in
@@ -2897,8 +2909,11 @@ following the link, also on this loop, and Plan 4 shipped that deliberately. A r
 one asynchronous stat path for both call sites and belongs to whichever plan takes on
 non-blocking IO, not to an icon change.
 
-190 of the 613 distinct `application/*` types in `globs2` have no `generic-icons` entry
-and fall through to the class arm. That arm used to answer `application-x-executable` for
+190 of the 613 distinct `application/*` types in `globs2` have no `generic-icons` entry on
+this box and fall through to the class arm. Both counts move with the installed applications,
+because `update-mime-database` merges `/usr/share/mime/packages/`: a root built from
+`freedesktop.org.xml` alone gives 138 of 552, which is why no test asserts a row of these
+tables, see `docs/protocol.md` and issue 1. That arm used to answer `application-x-executable` for
 all 190, so a `.pem` drew as a program. The row's own execute bit now decides, the same
 three bits `Row.nameColor` reads: set gives `application-x-executable`, clear gives
 `application-x-generic`. Of the 190, three are usually executable and reachable by a glob:
