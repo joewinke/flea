@@ -50,7 +50,9 @@ ListView {
         width: root.width
         row: root.pane.rowFor(listingIndex)
         cursor: listingIndex === root.pane.cursorIndex
-        hovered: hover.hovered
+        // The menu stands over the listing when it is open, and a HoverHandler cannot know that:
+        // gate the tint on it, or rows beneath the flyout light up as the pointer crosses it.
+        hovered: hover.hovered && !root.menu.opened
         thumb: root.thumbFor(listingIndex)
         // The zebra follows the drawn position, so a narrowed listing still alternates row by row.
         alternate: index % 2 === 1

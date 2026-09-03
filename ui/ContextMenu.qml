@@ -16,7 +16,6 @@ Item {
     property bool opened: false
     // Driven from ui/Pane.qml's own state, so this file owns no hidden-file logic itself.
     property bool showHidden: false
-    // The application name ui/Opener.qml resolved for the cursor row, shown muted beside "Open".
     property string openSuffix: ""
     // [{id, label}], the reachable Taildrop targets; empty self-hides the whole row, see ui/Taildrop.qml.
     property var taildropPeers: []
@@ -43,7 +42,7 @@ Item {
     signal railChosen(string action, string key)
 
     // ui/Header.qml's own entrance, the third face of this one instance: the column toggles and the
-    // state rows built from qs module ViewState, flowing back through chosen() like the listing's.
+    // state rows, flowing back through chosen() like the listing's.
     property bool forHeader: false
     function openForHeader(scenePoint) {
         root.forHeader = true
@@ -76,8 +75,7 @@ Item {
     // The row list this menu currently offers; a test reads this back through shell.qml's IPC.
     readonly property var entries: root.buildEntries()
 
-    // The construction lives in ui/js/Menu.js now, so the rows are unit-testable without a window;
-    // this file only routes between the three faces.
+    // The construction lives in ui/js/Menu.js now, so the rows are unit-testable without a window.
     function buildEntries() {
         // Which release a rail row offers is the rail's knowledge, not the listing's, so the rail
         // hands its rows in already built; see ui/js/Mounts.js "railMenu".
@@ -200,8 +198,8 @@ Item {
         root.chosen(action)
     }
 
-    // One signal covers every submenu: a row with its own whole action fires it as named; a Taildrop
-    // peer or an archive format composes the row's parent verb with its id, as those two answer.
+    // One signal covers every submenu: a row with its own action fires it as named; a Taildrop peer
+    // or an archive format composes the row's parent verb with its id, as those two answer.
     function chooseSub(sub) {
         var entry = root.entries[root.openSubmenuRow]
         root.close()
@@ -249,8 +247,7 @@ Item {
         surface: flyout
     }
 
-    // Hover and wheel blocking: an event that neither blocks would drive the rows beneath an open
-    // menu. No buttons, so presses stay with the rows.
+    // Hover and wheel blocking: an event that neither blocks would drive the rows beneath the menu.
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.NoButton
@@ -312,7 +309,8 @@ Item {
         }
         x: frame.x + frame.width
         // peers.y already carries the inset, so the flyout frame itself stays on the row grid.
-        y: frame.y + root.submenuOffset()
+        // A flyout near the bottom drops up: clamped against the pane, a row of air to spare.
+        y: Menu.clamp(frame.y + root.submenuOffset(), height + Theme.spacing.rowPaddingY, parent.height)
         width: Theme.menuWidth
         height: peers.implicitHeight + 2 * Theme.spacing.rowPaddingY
         color: Theme.color.surface
@@ -381,11 +379,12 @@ Item {
                 event.accepted = true
                 return
             }
-            if (action === "open" || action === "preview") {
+            // Right and Enter and Space all choose; Right on a shut flyout opens it, Left shuts it.
+            if (action === "open" || action === "preview" || action === "seekForward") {
                 if (root.submenuOpen) {
                     var sub = root.submenuEntries[root.submenuCursor]
                     if (sub)
-                        root.chooseSub(sub.id)
+                        root.chooseSub(sub)
                 } else {
                     var entry = root.entries[root.cursor]
                     if (Menu.hasSubmenu(entry))
@@ -395,6 +394,7 @@ Item {
                 }
                 event.accepted = true
             }
+            if ((action === "seekBack" || action === "cursorLeft") && root.submenuOpen) { root.openSubmenuRow = -1; event.accepted = true; return }
         }
     }
 }
